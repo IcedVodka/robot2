@@ -360,29 +360,7 @@ class TeleoperationController:
         self._master_thread = None
         self._slave_thread = None
 
-        # 初始化时松开灵巧手
-        self.release_hand(block=True)
-        self.hand_state = 'open'  # 当前灵巧手状态: 'open' or 'grip'
-        self.prev_hand_state = 'open'  # 上一次灵巧手状态
 
-    def set_hand_state(self, state: str) -> None:
-        """
-        外部设置灵巧手状态
-        
-        Args:
-            state (str): 灵巧手状态
-                       - 'open': 松开状态
-                       - 'grip': 夹紧状态
-                       
-        Raises:
-            ValueError: 状态值无效时抛出
-            
-        Example:
-            >>> teleop.set_hand_state('grip')  # 设置为夹紧状态
-        """
-        if state not in ('open', 'grip'):
-            raise ValueError("hand_state must be 'open' or 'grip'")
-        self.hand_state = state
 
     def _master_collect(self) -> None:
         """
@@ -415,59 +393,6 @@ class TeleoperationController:
             except Exception as e:
                 debug_print("TeleoperationController", f"[Slave] Error setting joint: {e}", "ERROR")
             
-            # 灵巧手状态判断和处理
-            if self.hand_state != self.prev_hand_state:
-                if self.hand_state == 'grip':
-                    try:
-                        self.grip_hand(block=True)
-                        debug_print("TeleoperationController", "[Slave] 灵巧手夹紧", "INFO")
-                    except Exception as e:
-                        debug_print("TeleoperationController", f"[Slave] 灵巧手夹紧失败: {e}", "ERROR")
-                elif self.hand_state == 'open':
-                    try:
-                        self.release_hand(block=True)
-                        debug_print("TeleoperationController", "[Slave] 灵巧手松开", "INFO")
-                    except Exception as e:
-                        debug_print("TeleoperationController", f"[Slave] 灵巧手松开失败: {e}", "ERROR")
-                self.prev_hand_state = self.hand_state
-
-    def grip_hand(self, block: bool = True) -> int:
-        """
-        夹紧灵巧手
-        
-        Args:
-            block (bool): 是否阻塞执行
-                         - True: 阻塞模式，等待执行完成
-                         - False: 非阻塞模式，立即返回
-        
-        Returns:
-            int: 执行状态码
-                - 0: 成功
-                - 其他: 失败错误码
-                
-        Example:
-            >>> teleop.grip_hand(block=True)
-        """
-        return self.slave.set_hand_angle(Hand_grip_angles, block=block)
-
-    def release_hand(self, block: bool = True) -> int:
-        """
-        松开灵巧手
-        
-        Args:
-            block (bool): 是否阻塞执行
-                         - True: 阻塞模式，等待执行完成
-                         - False: 非阻塞模式，立即返回
-        
-        Returns:
-            int: 执行状态码
-                - 0: 成功
-                - 其他: 失败错误码
-                
-        Example:
-            >>> teleop.release_hand(block=True)
-        """
-        return self.slave.set_hand_angle(Hand_release_angles, block=block)
 
     def start(self) -> None:
         """

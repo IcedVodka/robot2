@@ -1,1 +1,0 @@
-# Robot/models/hand_detector.py 

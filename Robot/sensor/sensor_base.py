@@ -1,196 +1,66 @@
-import threading
-import queue
-import time
-import logging
-from abc import ABC, abstractmethod
-from typing import Optional, Any, Dict
+from typing import List, Dict, Any, Optional
 from utils.logger import get_logger
-
+from abc import ABC, abstractmethod
 
 class Sensor(ABC):
     """
-    传感器基类
-    提供传感器的基础功能：启动、停止、数据获取等
+    基础传感器类
+    
+    所有传感器的基类，定义了传感器的基本接口和通用功能。
+    get_information：返回传感器的全部原始信息（如最新一帧的全部数据，非阻塞，通常取队列最新帧）。
+    get：根据 collect_info 过滤，只返回用户关心的数据类型。
     """
+    def __init__(self):
+        """初始化基础传感器"""
+        self.name = "sensor"
+        self.type = "sensor"
+        self.collect_info: Optional[List[str]] = None
+        self.logger = get_logger(self.name)
     
-    def __init__(self, name: str, buffer_size: int = 10):
+    def set_collect_info(self, collect_info: List[str]) -> None:
         """
-        初始化传感器
-        
+        设置需要采集的数据类型
         Args:
-            name: 传感器名称
-            buffer_size: 数据缓冲区大小
+            collect_info: 需要采集的数据类型列表，如["color", "depth"]
         """
-        self.name = name
-        self.buffer = queue.Queue(maxsize=buffer_size)
-        self.running = False
-        self.thread = None
-        self.logger = get_logger(f"Sensor.{name}")
-        
-        # 传感器状态
-        self.is_connected = False
-        self.last_update_time = 0
-        self.error_count = 0
-        self.max_errors = 5
-        
-    def start(self) -> bool:
-        """
-        启动传感器
-        
-        Returns:
-            bool: 启动是否成功
-        """
-        if self.running:
-            self.logger.warning(f"{self.name} 已经在运行")
-            return True
-            
-        try:
-            if not self._connect():
-                self.logger.error(f"{self.name} 连接失败")
-                return False
-                
-            self.running = True
-            self.thread = threading.Thread(target=self._data_collection_loop, daemon=True)
-            self.thread.start()
-            self.logger.info(f"{self.name} 启动成功")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"{self.name} 启动失败: {e}")
-            return False
+        self.collect_info = collect_info
     
-    def stop(self):
+    def get(self) -> Optional[Dict[str, Any]]:
         """
-        停止传感器
-        """
-        if not self.running:
-            return
-            
-        self.running = False
-        if self.thread and self.thread.is_alive():
-            self.thread.join(timeout=2.0)
-            
-        self._disconnect()
-        self.logger.info(f"{self.name} 已停止")
-    
-    def get_latest_data(self) -> Optional[Any]:
-        """
-        获取最新的传感器数据
-        
+        获取传感器数据（根据 collect_info 过滤）
         Returns:
-            Optional[Any]: 最新的数据，如果没有数据则返回None
+            Dict[str, Any]: 包含指定类型数据的字典，如果collect_info未设置则返回全部原始数据
         """
-        try:
-            if self.buffer.empty():
-                return None
-            return self.buffer.get_nowait()
-        except queue.Empty:
+        info = self.get_information()
+        if info is None:
+            self.logger.warning("get_information() 返回 None")
             return None
-    
-    def is_available(self) -> bool:
-        """
-        检查传感器是否可用
-        
-        Returns:
-            bool: 传感器是否可用
-        """
-        return self.is_connected and self.running
-    
-    def get_status(self) -> Dict[str, Any]:
-        """
-        获取传感器状态信息
-        
-        Returns:
-            Dict[str, Any]: 状态信息字典
-        """
-        return {
-            "name": self.name,
-            "running": self.running,
-            "connected": self.is_connected,
-            "buffer_size": self.buffer.qsize(),
-            "error_count": self.error_count,
-            "last_update": self.last_update_time
-        }
-    
-    def clear_buffer(self):
-        """
-        清空数据缓冲区
-        """
-        while not self.buffer.empty():
-            try:
-                self.buffer.get_nowait()
-            except queue.Empty:
-                break
-    
+        if not self.collect_info:
+            return info
+        result = {}
+        for key in self.collect_info:
+            value = info.get(key)
+            if value is None:
+                self.logger.error(f"{key} 信息为 None 或未包含在 info 中")
+                raise ValueError(f"{key} 数据为 None 或未找到")
+            result[key] = value
+        return result
+
     @abstractmethod
-    def _connect(self) -> bool:
+    def get_information(self) -> Optional[Dict[str, Any]]:
         """
-        连接传感器（子类必须实现）
-        
+        获取传感器全部原始信息
         Returns:
-            bool: 连接是否成功
+            Dict[str, Any]: 传感器原始数据字典
         """
         pass
-    
-    @abstractmethod
-    def _disconnect(self):
+
+    def cleanup(self):
         """
-        断开传感器连接（子类必须实现）
-        """
-        pass
-    
-    @abstractmethod
-    def _read_data(self) -> Optional[Any]:
-        """
-        读取传感器数据（子类必须实现）
-        
-        Returns:
-            Optional[Any]: 读取的数据，如果失败返回None
+        清理传感器资源（基类只做空实现，子类如有资源需重写）
         """
         pass
-    
-    def _data_collection_loop(self):
-        """
-        数据采集循环
-        """
-        self.logger.info(f"{self.name} 开始数据采集")
-        
-        while self.running:
-            try:
-                data = self._read_data()
-                if data is not None:
-                    # 如果缓冲区满了，移除最旧的数据
-                    if self.buffer.full():
-                        try:
-                            self.buffer.get_nowait()
-                        except queue.Empty:
-                            pass
-                    
-                    self.buffer.put(data)
-                    self.last_update_time = time.time()
-                    self.error_count = 0  # 重置错误计数
-                else:
-                    self.error_count += 1
-                    if self.error_count >= self.max_errors:
-                        self.logger.error(f"{self.name} 连续错误次数过多，停止采集")
-                        break
-                    time.sleep(0.01)  # 短暂等待
-                    
-            except Exception as e:
-                self.error_count += 1
-                self.logger.error(f"{self.name} 数据采集错误: {e}")
-                if self.error_count >= self.max_errors:
-                    self.logger.error(f"{self.name} 错误次数过多，停止采集")
-                    break
-                time.sleep(0.1)  # 错误时等待更长时间
-        
-        self.logger.info(f"{self.name} 数据采集结束")
-    
-    def __enter__(self):
-        """上下文管理器入口"""
-        self.start()
-        return self
-    
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """上下文管理器出口"""
-        self.stop() 
+
+    def __repr__(self) -> str:
+        """返回传感器的字符串表示"""
+        return f"Base Sensor, can't be used directly\nname: {self.name}\ntype: {self.type}"

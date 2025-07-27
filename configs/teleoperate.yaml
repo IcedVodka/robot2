@@ -1,0 +1,11 @@
+# 遥操作配置
+teleoperation:
+  master:
+    ip: "192.168.1.19"
+    port: 8080
+    name: "master_robot"
+
+  slave:
+    ip: "192.168.1.18"
+    port: 8080
+    name: "slave_robot"

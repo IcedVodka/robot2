@@ -1,0 +1,37 @@
+# 手部深度相机配置
+hand_realsense:
+  name: "HandDepthCamera"
+  serial_number: "327122072195"  # 如果为null，将使用第一个可用设备
+  width: 640
+  height: 480
+  fps: 30
+  buffer_size: 1
+  enable_color: true
+  enable_depth: true
+
+  # 彩色相机内参
+  color_intrinsics:
+    ppx: 329.98211669921875  # 主点x坐标
+    ppy: 246.95748901367188  # 主点y坐标
+    fx: 607.5119018554688    # 焦距x
+    fy: 607.0875854492188    # 焦距y 
+  # 深度相机内参
+  depth_intrinsics:
+    ppx: 329.98211669921875  # 主点x坐标
+    ppy: 246.95748901367188  # 主点y坐标
+    fx: 607.5119018554688    # 焦距x
+    fy: 607.0875854492188    # 焦距y 
+  # 手眼标定结果
+  hand_eye_calibration:
+    # 旋转矩阵 (3x3)
+    rotation_matrix:
+      - [0.01063683, 0.99986326, -0.01266192]
+      - [-0.99992363, 0.01055608, -0.00642741]
+      - [-0.00629287, 0.01272932, 0.99989918]
+    
+    # 平移向量 (3x1)
+    translation_vector:
+      - -0.09011056
+      - 0.02759339
+      - 0.02540262
+
