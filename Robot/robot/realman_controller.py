@@ -39,9 +39,16 @@ class RealmanController:
         try:
             with open('configs/robot_config.yaml', 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f)
-            self.hand_grip_angles = config.get('Hand_grip_angles', [1000, 14000, 14000, 14000, 14000, 10000])
-            self.hand_release_angles = config.get('Hand_release_angles', [4000, 17800, 17800, 17800, 17800, 10000])
-            self.arm_init_joints = config.get('Arm_init_joints', [0, 0, 90, 0, 90, 0])
+            
+            # 正确访问嵌套的配置结构
+            robot_config = config.get('robot', {})
+            hand_config = robot_config.get('hand', {})
+            
+            self.hand_grip_angles = hand_config.get('grip_angles', [1000, 14000, 14000, 14000, 14000, 10000])
+            self.hand_release_angles = hand_config.get('release_angles', [4000, 17800, 17800, 17800, 17800, 10000])
+            self.arm_init_joints = robot_config.get('arm_init_joints', [0, 0, 90, 0, 90, 0])
+            self.arm_move_speed = robot_config.get('arm_move_speed', 20)
+            self.logger.info(f"读取robot_config.yaml成功，hand_grip_angles: {self.hand_grip_angles}, hand_release_angles: {self.hand_release_angles}, arm_init_joints: {self.arm_init_joints}")
         except Exception as e:
             self.logger.warning(f"读取robot_config.yaml失败，使用默认参数: {e}")
             self.hand_grip_angles = [1000, 14000, 14000, 14000, 14000, 10000]
@@ -82,7 +89,7 @@ class RealmanController:
                 return False
 
         try:
-            result = self.robot.rm_movej(start_angles, 20, 0, 0, 1)
+            result = self.robot.rm_movej(start_angles, self.arm_move_speed, 0, 0, 1)
             if result == 0:
                 self.logger.info(f"{self.name} arm moved to start position")
                 succ, state = self.robot.rm_get_current_arm_state()
@@ -113,7 +120,7 @@ class RealmanController:
 
     def set_arm_joints(self, joint: List[float]) -> None:
         """
-        设置机械臂关节角度
+        设置机械臂关节角度，直接透传给机械臂，不进行阻塞实时返回
         """
         try:
             if len(joint) != 6:
@@ -126,12 +133,28 @@ class RealmanController:
         except Exception as e:
             self.logger.error(f"Error moving robot: {str(e)}")
             raise RuntimeError(f"Error moving robot: {str(e)}")
+        
+    def set_arm_joints_block(self, joint: List[float]) -> None:
+        """
+        设置机械臂关节角度，阻塞模式，等待机械臂到达目标位置或规划失败后才返回
+        """
+        try:
+            if len(joint) != 6:
+                self.logger.error(f"Invalid joint length: {len(joint)}, expected 6")
+                raise ValueError(f"Invalid joint length: {len(joint)}, expected 6")
+            success = self.robot.rm_movej(joint, self.arm_move_speed, 0, 0, 1)
+            if success != 0:
+                self.logger.error("Failed to set joint angles")
+                raise RuntimeError("Failed to set joint angles")
+        except Exception as e:
+            self.logger.error(f"Error moving robot: {str(e)}")
+            raise RuntimeError(f"Error moving robot: {str(e)}")
 
     def set_arm_init_joint(self) -> None:
         """
         将机械臂移动到全局变量arm_init_joints定义的初始位置
         """
-        self.set_arm_joints(self.arm_init_joints)
+        self.set_arm_joints_block(self.arm_init_joints)
 
     def set_hand_angle(self, hand_angle: List[int], block: bool = True, timeout: int = 10) -> int:
         if not self.is_hand:

@@ -26,17 +26,17 @@ def test_rgb_camera_sensor():
     print("=== RGB摄像头传感器测试程序 ===")
     
     # 摄像头ID - 请根据实际情况修改
-    camera_id = 0  # 通常0是默认摄像头
+    camera_id = 14  # 通常0是默认摄像头
     
     sensor = None
     try:
         # 1. 初始化传感器
         print("1. 初始化RGB摄像头传感器...")
-        sensor = RgbCameraSensor(camera_id=camera_id)
+        sensor = RgbCameraSensor(name="test_camera")
         
         # 2. 设置相机参数
         print("2. 设置相机参数...")
-        sensor.set_up()
+        sensor.set_up(camera_id=camera_id)
         
         # 3. 获取并显示图像
         print("3. 开始获取图像数据...")
@@ -107,8 +107,8 @@ def test_multiple_cameras():
         print(f"\n测试摄像头 ID: {camera_id}")
         sensor = None
         try:
-            sensor = RgbCameraSensor(camera_id=camera_id)
-            sensor.set_up()
+            sensor = RgbCameraSensor(name=f"test_camera_{camera_id}")
+            sensor.set_up(camera_id=camera_id)
             
             # 尝试获取几帧图像
             for i in range(10):

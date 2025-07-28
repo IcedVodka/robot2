@@ -2,6 +2,9 @@ import cv2
 import time
 import numpy as np
 from typing import List, Tuple
+import pyrealsense2 as rs
+import os
+from datetime import datetime
 
 
 def test_cameras(max_cameras: int = 10, display_time: int = 30) -> List[Tuple[int, bool]]:
@@ -60,7 +63,7 @@ def test_cameras(max_cameras: int = 10, display_time: int = 30) -> List[Tuple[in
                     break
                 
                 # 在图像上显示信息
-                info_text = f"Camera {camera_index} - Press 'q' to skip, 'ESC' to exit"
+                info_text = f"Camera {camera_index} - Press 'q' to skip, 'ESC' to exit, 'k' to capture"
                 cv2.putText(frame, info_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
                            0.7, (0, 255, 0), 2)
                 
@@ -77,6 +80,24 @@ def test_cameras(max_cameras: int = 10, display_time: int = 30) -> List[Tuple[in
                 if key == ord('q'):
                     print(f"用户跳过相机 {camera_index}")
                     break
+                elif key == ord('k'):
+                    # 拍照功能
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"camera_{camera_index}_{timestamp}.jpg"
+                    save_path = os.path.join("data", "test_images", filename)
+                    
+                    # 确保目录存在
+                    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                    
+                    if cv2.imwrite(save_path, frame):
+                        print(f"照片已保存: {save_path}")
+                        # 在图像上显示保存成功的信息
+                        cv2.putText(frame, "Photo Saved!", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 
+                                   0.7, (0, 255, 0), 2)
+                    else:
+                        print(f"保存照片失败: {save_path}")
+                        cv2.putText(frame, "Save Failed!", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 
+                                   0.7, (0, 0, 255), 2)
                 elif key == 27:  # ESC
                     print("用户退出程序")
                     cap.release()
@@ -150,7 +171,7 @@ def test_camera_with_info(camera_index: int, display_time: int = 30) -> bool:
                 f"Camera {camera_index}",
                 f"Resolution: {width}x{height}",
                 f"FPS: {fps:.1f}",
-                f"Press 'q' to skip, 'ESC' to exit"
+                f"Press 'q' to skip, 'ESC' to exit, 'k' to capture"
             ]
             
             for i, line in enumerate(info_lines):
@@ -169,6 +190,24 @@ def test_camera_with_info(camera_index: int, display_time: int = 30) -> bool:
             if key == ord('q'):
                 print(f"用户跳过相机 {camera_index}")
                 break
+            elif key == ord('k'):
+                # 拍照功能
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"camera_{camera_index}_{timestamp}.jpg"
+                save_path = os.path.join("data", "test_images", filename)
+                
+                # 确保目录存在
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                
+                if cv2.imwrite(save_path, frame):
+                    print(f"照片已保存: {save_path}")
+                    # 在图像上显示保存成功的信息
+                    cv2.putText(frame, "Photo Saved!", (10, 175), cv2.FONT_HERSHEY_SIMPLEX, 
+                               0.7, (0, 255, 0), 2)
+                else:
+                    print(f"保存照片失败: {save_path}")
+                    cv2.putText(frame, "Save Failed!", (10, 175), cv2.FONT_HERSHEY_SIMPLEX, 
+                               0.7, (0, 0, 255), 2)
             elif key == 27:  # ESC
                 print("用户退出程序")
                 cap.release()
@@ -183,32 +222,183 @@ def test_camera_with_info(camera_index: int, display_time: int = 30) -> bool:
     return True
 
 
+def test_realsense_cameras():
+    """
+    遍历所有连接的RealSense深度相机，显示视频流和深度流
+    """
+    try:
+        # 打印所有连接的RealSense设备
+        context = rs.context()
+        devices = list(context.query_devices())
+        
+        if not devices:
+            print("未找到任何RealSense设备")
+            return
+        
+        print(f"找到 {len(devices)} 个RealSense深度相机:")
+        for device in devices:
+            serial = device.get_info(rs.camera_info.serial_number)
+            name = device.get_info(rs.camera_info.name)
+            print(f"  设备名称: {name}")
+            print(f"  序列号: {serial}")
+        
+        print("\n开始遍历深度相机...")
+        print("按 'q' 键切换到下一个相机，按 'k' 键拍照，按 'ESC' 退出程序")
+        print("-" * 50)
+        
+        # 遍历每个设备
+        for device in devices:
+            serial = device.get_info(rs.camera_info.serial_number)
+            name = device.get_info(rs.camera_info.name)
+            
+            print(f"\n正在测试设备: {name}")
+            print(f"序列号: {serial}")
+            
+            # 配置管道
+            pipeline = rs.pipeline()
+            config = rs.config()
+            config.enable_device(serial)
+            config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+            config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+            
+            try:
+                # 启动管道
+                profile = pipeline.start(config)                
+                                
+                # 创建窗口
+                color_window = f"Color - {name}"
+                depth_window = f"Depth - {name}"
+                cv2.namedWindow(color_window, cv2.WINDOW_NORMAL)
+                cv2.namedWindow(depth_window, cv2.WINDOW_NORMAL)
+                
+                print("显示视频流和深度流，按 'q' 切换到下一个相机...")
+                
+                while True:
+                    # 等待帧
+                    frames = pipeline.wait_for_frames()
+                    color_frame = frames.get_color_frame()
+                    depth_frame = frames.get_depth_frame()
+                    
+                    if not color_frame or not depth_frame:
+                        continue
+                    
+                    # 转换为numpy数组
+                    color_image = np.asanyarray(color_frame.get_data())
+                    depth_image = np.asanyarray(depth_frame.get_data())
+                    
+                    # 深度图像转换为可显示的格式
+                    depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+                    
+                    # 在图像上显示信息
+                    info_text = f"Device: {name} - Press 'k' to capture"
+                    cv2.putText(color_image, info_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    cv2.putText(depth_colormap, info_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    
+                    # 显示图像
+                    cv2.imshow(color_window, color_image)
+                    cv2.imshow(depth_window, depth_colormap)
+                    
+                    # 检查按键
+                    key = cv2.waitKey(1) & 0xFF
+                    if key == ord('q'):
+                        print(f"切换到下一个相机...")
+                        break
+                    elif key == ord('k'):
+                        # 拍照功能 - 保存彩色图像和深度图像
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        color_filename = f"realsense_color_{serial}_{timestamp}.jpg"
+                        depth_filename = f"realsense_depth_{serial}_{timestamp}.png"
+                        
+                        color_save_path = os.path.join("data", "test_images", color_filename)
+                        depth_save_path = os.path.join("data", "test_images", depth_filename)
+                        
+                        # 确保目录存在
+                        os.makedirs(os.path.dirname(color_save_path), exist_ok=True)
+                        
+                        # 保存彩色图像
+                        color_saved = cv2.imwrite(color_save_path, color_image)
+                        # 保存深度图像（原始深度数据）
+                        depth_saved = cv2.imwrite(depth_save_path, depth_image)
+                        
+                        if color_saved and depth_saved:
+                            print(f"照片已保存: {color_save_path}")
+                            print(f"深度图已保存: {depth_save_path}")
+                            # 在图像上显示保存成功的信息
+                            cv2.putText(color_image, "Photos Saved!", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 
+                                       0.7, (0, 255, 0), 2)
+                            cv2.putText(depth_colormap, "Photos Saved!", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 
+                                       0.7, (0, 255, 0), 2)
+                        else:
+                            print(f"保存照片失败")
+                            cv2.putText(color_image, "Save Failed!", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 
+                                       0.7, (0, 0, 255), 2)
+                            cv2.putText(depth_colormap, "Save Failed!", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 
+                                       0.7, (0, 0, 255), 2)
+                    elif key == 27:  # ESC
+                        print("用户退出程序")
+                        pipeline.stop()
+                        cv2.destroyAllWindows()
+                        return
+                
+            except Exception as e:
+                print(f"设备 {name} 测试失败: {e}")
+            finally:
+                # 释放资源
+                pipeline.stop()
+                cv2.destroyWindow(color_window)
+                cv2.destroyWindow(depth_window)
+                print(f"设备 {name} 测试完成")
+        
+        print("\n所有RealSense设备测试完成！")
+        
+    except Exception as e:
+        print(f"RealSense设备测试失败: {e}")
+
+
 if __name__ == "__main__":
     print("相机测试程序")
     print("=" * 50)
     
-    # 快速测试所有相机
-    results = test_cameras(max_cameras=20, display_time=30)
+    # 选择测试类型
+    print("选择测试类型:")
+    print("1. 普通相机测试")
+    print("2. RealSense深度相机测试")
     
-    # 询问是否要详细测试某个相机
-    working_cameras = [idx for idx, working in results if working]
-    if working_cameras:
-        print(f"\n找到 {len(working_cameras)} 个可用相机: {working_cameras}")
+    try:
+        choice = input("请输入选择 (1 或 2): ").strip()
         
-        while True:
-            try:
-                choice = input("\n输入相机编号进行详细测试 (或按回车退出): ").strip()
-                if not choice:
-                    break
+        if choice == "1":
+            # 快速测试所有相机
+            results = test_cameras(max_cameras=20, display_time=30)
+            
+            # 询问是否要详细测试某个相机
+            working_cameras = [idx for idx, working in results if working]
+            if working_cameras:
+                print(f"\n找到 {len(working_cameras)} 个可用相机: {working_cameras}")
                 
-                camera_idx = int(choice)
-                if camera_idx in working_cameras:
-                    test_camera_with_info(camera_idx, display_time=30)
-                else:
-                    print(f"相机 {camera_idx} 不可用或未测试")
-            except ValueError:
-                print("请输入有效的数字")
-            except KeyboardInterrupt:
-                break
+                while True:
+                    try:
+                        choice = input("\n输入相机编号进行详细测试 (或按回车退出): ").strip()
+                        if not choice:
+                            break
+                        
+                        camera_idx = int(choice)
+                        if camera_idx in working_cameras:
+                            test_camera_with_info(camera_idx, display_time=30)
+                        else:
+                            print(f"相机 {camera_idx} 不可用或未测试")
+                    except ValueError:
+                        print("请输入有效的数字")
+                    except KeyboardInterrupt:
+                        break
+        
+        elif choice == "2":
+            test_realsense_cameras()
+        
+        else:
+            print("无效选择")
+    
+    except KeyboardInterrupt:
+        print("\n程序被用户中断")
     
     print("\n测试完成！") 

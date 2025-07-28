@@ -2,6 +2,12 @@
 __pycache__/
  
 logs/
-outputs
+
 
 assets/
+
+configs/
+
+data/
+
+a.py

@@ -14,10 +14,10 @@ class RgbCameraSensor(VisionSensor):
     ===== 使用说明 =====
     
     1. 初始化传感器：
-       sensor = RgbCameraSensor(camera_id=0)
+       sensor = RgbCameraSensor(name="my_camera")
     
     2. 设置相机参数：
-       sensor.set_up()
+       sensor.set_up(camera_id=0)
     
     3. 设置采集数据类型：
        sensor.set_collect_info(["color"])
@@ -36,8 +36,8 @@ class RgbCameraSensor(VisionSensor):
        sensor.cleanup()
     
     ===== 对外接口 =====
-    - __init__(camera_id): 初始化传感器
-    - set_up(): 设置相机参数
+    - __init__(name): 初始化传感器
+    - set_up(camera_id): 设置相机参数
     - set_collect_info(collect_info): 设置采集数据类型
     - get_information(): 获取最新帧全部数据（非阻塞）
     - get_immediate_image(): 获取即时帧数据（阻塞）
@@ -50,21 +50,24 @@ class RgbCameraSensor(VisionSensor):
         "color": np.ndarray  # BGR彩色图像 (H, W, 3)，与OpenCV格式保持一致
     }
     """
-    def __init__(self, camera_id=0):
+    def __init__(self, name="rgb_camera"):
         super().__init__(buffer_size=1)
-        self.camera_id = camera_id
+        self.camera_id = None
         self.cap = None
-        self.name = f"rgb_camera_{camera_id}"
+        self.name = name
         self.type = "rgb_camera"
         self.logger = get_logger(self.name)
         self.logger.info(f"初始化RGB摄像头传感器: {self.name}")
 
-    def set_up(self):
+    def set_up(self, camera_id=0):
         """
         设置RGB摄像头
+        Args:
+            camera_id (int): 摄像头ID，默认为0
         Raises:
             RuntimeError: 当无法打开摄像头时抛出
         """
+        self.camera_id = camera_id
         self.set_collect_info(["color"])
         self.logger.info(f"开始设置RGB摄像头，ID: {self.camera_id}")
         
