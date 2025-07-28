@@ -3,7 +3,7 @@
 
 ### 测试任务
     普通相机rgb_camera.py
-    深度相机depth_camera.py
+        深度相机depth_camera.py
     机器人操控信息读取realman_controller.py
     手臂遥操跟随arm_teleop.py
     完成吸盘的改写

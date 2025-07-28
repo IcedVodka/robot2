@@ -125,8 +125,8 @@ class VisionSensor(Sensor):
         
         Returns:
             Dict[str, np.ndarray]: 包含图像数据的字典
-                - "color": RGB彩色图像 (H, W, 3)
-                - "depth": 深度图像 (H, W) 
+                - "color": BGR彩色图像 (H, W, 3)，与OpenCV格式保持一致
+                - "depth": 深度图像 (H, W)，单位为毫米(mm)
                 - "point_cloud": 点云数据 (N, 3)
         """
         image_info = {}
@@ -160,7 +160,7 @@ class RealsenseSensor(VisionSensor):
     
     特性:
     - 支持多线程异步数据采集
-    - 自动BGR到RGB颜色空间转换
+    - 输出BGR格式图像，与OpenCV保持一致
     - 线程安全的帧缓冲机制
     - 优雅的资源清理
     """
@@ -267,9 +267,9 @@ class RealsenseSensor(VisionSensor):
             color_frame = frame.get_color_frame()
             if not color_frame:
                 raise RuntimeError("Failed to get color frame.")
+            # RealSense默认输出BGR格式，直接使用，与OpenCV保持一致
             color_image = np.asanyarray(color_frame.get_data()).copy()
-            # BGR -> RGB 颜色空间转换
-            image["color"] = color_image[:,:,::-1]
+            image["color"] = color_image
 
         if "depth" in self.collect_info:
             if not self.is_depth:
@@ -301,8 +301,8 @@ class RealsenseSensor(VisionSensor):
                 if "color" in self.collect_info:
                     color_frame = frames.get_color_frame()
                     if color_frame:
-                        # BGR -> RGB 转换
-                        frame_data["color"] = np.asanyarray(color_frame.get_data())[:,:,::-1]
+                        # RealSense默认输出BGR格式，直接使用，与OpenCV保持一致
+                        frame_data["color"] = np.asanyarray(color_frame.get_data())
                 
                 if self.is_depth and "depth" in self.collect_info:
                     depth_frame = frames.get_depth_frame()

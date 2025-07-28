@@ -7,8 +7,34 @@ class Sensor(ABC):
     基础传感器类
     
     所有传感器的基类，定义了传感器的基本接口和通用功能。
-    get_information：返回传感器的全部原始信息（如最新一帧的全部数据，非阻塞，通常取队列最新帧）。
-    get：根据 collect_info 过滤，只返回用户关心的数据类型。
+    
+    ===== 使用说明 =====
+    
+    1. 初始化传感器：
+       sensor = ConcreteSensor()  # 具体传感器类
+    
+    2. 设置采集数据类型：
+       sensor.set_collect_info(["color", "depth"])
+    
+    3. 获取数据：
+       # 获取全部原始数据
+       data = sensor.get_information()
+       
+       # 根据collect_info过滤获取数据
+       filtered_data = sensor.get()
+    
+    4. 清理资源：
+       sensor.cleanup()
+    
+    ===== 对外接口 =====
+    - __init__(): 初始化传感器
+    - set_collect_info(collect_info): 设置采集数据类型
+    - get_information(): 获取传感器全部原始信息（抽象方法）
+    - get(): 根据collect_info过滤获取数据
+    - cleanup(): 清理资源
+    
+    ===== 内部方法（不应外部调用）=====
+    - 所有以_开头的方法都是内部方法
     """
     def __init__(self):
         """初始化基础传感器"""
@@ -16,6 +42,7 @@ class Sensor(ABC):
         self.type = "sensor"
         self.collect_info: Optional[List[str]] = None
         self.logger = get_logger(self.name)
+        self.logger.debug("基础传感器初始化完成")
     
     def set_collect_info(self, collect_info: List[str]) -> None:
         """
@@ -24,6 +51,7 @@ class Sensor(ABC):
             collect_info: 需要采集的数据类型列表，如["color", "depth"]
         """
         self.collect_info = collect_info
+        self.logger.info(f"设置采集数据类型: {collect_info}")
     
     def get(self) -> Optional[Dict[str, Any]]:
         """
@@ -49,7 +77,7 @@ class Sensor(ABC):
     @abstractmethod
     def get_information(self) -> Optional[Dict[str, Any]]:
         """
-        获取传感器全部原始信息
+        获取传感器全部原始信息（抽象方法，子类必须实现）
         Returns:
             Dict[str, Any]: 传感器原始数据字典
         """
@@ -59,7 +87,7 @@ class Sensor(ABC):
         """
         清理传感器资源（基类只做空实现，子类如有资源需重写）
         """
-        pass
+        self.logger.debug("基础传感器清理完成")
 
     def __repr__(self) -> str:
         """返回传感器的字符串表示"""
