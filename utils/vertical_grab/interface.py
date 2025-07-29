@@ -7,7 +7,7 @@ def vertical_catch(
         depth_frame: ndarray,
         color_intr: dict,
         current_pose: list,
-        arm_gripper_length: float,
+        adjustment: list,
         vertical_rx_ry_rz: list,
         rotation_matrix: list,
         translation_vector: list,
@@ -20,7 +20,7 @@ def vertical_catch(
         depth_frame: 深度帧
         color_intr: 相机内参
         current_pose: 当前位姿
-        arm_gripper_length: 夹爪长度
+        adjustment: 夹爪安全预备位置和最终抓取位置的调整量
         vertical_rx_ry_rz: 预设的夹爪垂直的位姿
         rotation_matrix: 手眼标定结果的转换矩阵
         translation_vector: 手眼标定结果的平移矩阵
@@ -34,7 +34,7 @@ def vertical_catch(
         depth_frame,
         color_intr,
         current_pose,
-        arm_gripper_length,
+        adjustment,
         vertical_rx_ry_rz,
         rotation_matrix,
         translation_vector,

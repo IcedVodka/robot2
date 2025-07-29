@@ -38,7 +38,7 @@ def test_realsense_sensor():
         
         # 2. 设置相机参数
         print("2. 设置相机参数...")
-        sensor.set_up(camera_serial=camera_serial2, is_depth=True)
+        sensor.set_up(camera_serial=camera_serial, is_depth=True)
         
         # 3. 获取并显示图像
         print("3. 开始获取图像数据...")

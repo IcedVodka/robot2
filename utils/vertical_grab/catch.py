@@ -2,9 +2,9 @@ import cv2
 import numpy as np
 from numpy import ndarray
 from typing import Tuple
-
-from vertical_grab.convert import convert
-from vertical_grab.crawl import chage_pose
+import copy
+from .convert import convert
+from .crawl import chage_pose
 
 
 def vertical_catch_main(
@@ -12,7 +12,7 @@ def vertical_catch_main(
         depth_frame: ndarray,
         color_intr: dict,
         current_pose: list,
-        arm_gripper_length: float,
+        adjustment: list,
         vertical_rx_ry_rz: list,
         rotation_matrix: list,
         translation_vector: list,
@@ -24,7 +24,7 @@ def vertical_catch_main(
     :param depth_frame:     物体的深度值信息
     :param color_intr:      相机的内参
     :param current_pose:    当前的位姿信息
-    :param arm_gripper_length:      夹爪的长度
+    :param adjustment:      夹爪安全预备位置和最终抓取位置的调整量
     :param vertical_rx_ry_rz:       正确的夹爪偏移角度
     :param rotation_matrix:         手眼标定的旋转矩阵
     :param translation_vector:      手眼标定的平移矩阵
@@ -61,42 +61,36 @@ def vertical_catch_main(
 
     # 计算物体位置，位置是物体中心点正上方10公分
     obj_pose = convert(x, y, z, *current_pose, rotation_matrix, translation_vector)
-    obj_pose = [i for i in obj_pose]
+    obj_pose = obj_pose.tolist() if hasattr(obj_pose, 'tolist') else list(obj_pose)
 
-    # 下潜距离
-    _z = min(obj_pose[2] * 0.8 + 0.10, 0.1 + 0.03)
+    
 
-    # 最终位置为物体上方 + 夹爪 + 10cm的距离
-    obj_pose[2] = obj_pose.copy()[2] + 0.10 + arm_gripper_length * 0.001
+    computed_object_pose = obj_pose.copy()
+    prepared_angle_pose = obj_pose.copy()
+    finally_pose = obj_pose.copy()
 
-    # 修改为垂直于桌面的RX,RY,RZ``
-    obj_pose[3:] = vertical_rx_ry_rz
+    prepared_angle_pose[0] = obj_pose.copy()[0] + adjustment[0]
+    prepared_angle_pose[3:] = current_pose[3:]
+    finally_pose[0] =  obj_pose.copy()[0] + adjustment[1]
+    finally_pose[3:] = current_pose[3:]
 
-    above_object_pose = obj_pose.copy()
 
-    # 计算偏转角度
-    _angle = obj_pose[5] - vertical_rx_ry_rz[2]
-    angle_joint, _ = compute_angle_with_mask(mask)
-    angle = (angle_joint / 180) * 3.14 - _angle
-    catch_pose = obj_pose.copy()
+    # # 下潜距离
+    # _z = min(obj_pose[2] * 0.8 + 0.10, 0.1 + 0.03)
 
-    # 移动到上方和旋转角度决定了抓取的流畅性
+    # # 最终位置为物体上方 + 夹爪 + 10cm的距离
+    # obj_pose[2] = obj_pose.copy()[2] + 0.10 + arm_gripper_length * 0.001
 
-    # 计算偏转角
-    if obj_pose[5] - angle > 0:
-        catch_pose[5] = obj_pose[5] - angle
-    else:
-        catch_pose[5] = obj_pose[5] - angle
+    # # 修改为垂直于桌面的RX,RY,RZ``
+    # obj_pose[3:] = vertical_rx_ry_rz   
 
-    # 记录一下
-    correct_angle_pose = catch_pose.copy()
+    
+    # correct_angle_pose = obj_pose.copy()
 
-    # 计算最终位姿
-    finally_pose = chage_pose(list(catch_pose), _z)
+    # # 计算最终位姿
+    # finally_pose = chage_pose(list(correct_angle_pose), _z)
 
-    finally_pose = finally_pose.copy()
-
-    return above_object_pose, correct_angle_pose, finally_pose
+    return computed_object_pose, prepared_angle_pose, finally_pose
 
 
 def compute_angle_with_mask(mask):
