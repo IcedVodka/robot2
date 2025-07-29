@@ -23,6 +23,7 @@ import os
 import logging
 from typing import Tuple, Optional, Dict, Any
 from utils.logger import setup_logger, get_logger
+from Robot.sensor.suction_sensor import SuctionController
 
 # 添加项目路径
 sys.path.append(os.path.abspath('.'))
@@ -45,6 +46,7 @@ class GraspController:
         self.sensor = None
         self.robot = None
         self.sam_model = None
+        self.suction = None
         
         # 状态变量
         self.selected_point = [320, 240]
@@ -93,6 +95,8 @@ class GraspController:
         self.robot = RealmanController("grasp_robot")
         self.robot.set_up(self.robot_ip, self.robot_port)
         self.robot.set_arm_init_joint()
+
+        self.suction = SuctionController()
 
         self.logger.info("所有组件初始化完成")
         return True        
@@ -247,6 +251,7 @@ class GraspController:
         #用户输入y/n，y则执行抓取，n则不执行
         user_input = input("请输入y/n: ")
         if user_input == "y":
+            self.suction.suck()
             self.robot.set_arm_joints_block(self.grasp_pose[1])
             time.sleep(1)
             self.robot.set_arm_joints_block(self.grasp_pose[2])
@@ -269,6 +274,7 @@ class GraspController:
         self.robot.set_arm_joints_block(self.arm_fang_joints)
         time.sleep(1)
         input("按回车键移动到初始位置...")
+        self.suction.release()
         self.robot.set_arm_init_joint()
         time.sleep(1)
         return True
