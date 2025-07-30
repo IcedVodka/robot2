@@ -21,9 +21,10 @@ import time
 import sys
 import os
 import logging
-from typing import Tuple, Optional, Dict, Any
+from typing import Tuple, Optional, Dict, Any, List
 from utils.logger import setup_logger, get_logger
 from Robot.sensor.suction_sensor import SuctionController
+from utils.vertical_grab.compute_pose import center_compute_pose
 
 # 添加项目路径
 sys.path.append(os.path.abspath('.'))
@@ -141,6 +142,32 @@ class GraspController:
     def stage1_image_selection(self):
         """阶段1: 图像展示和点选择"""
         self.logger.info("=== 阶段1: 图像展示和点选择 ===")
+        
+        # 询问用户选择模式
+        print("\n请选择点选择模式:")
+        print("1. 手动选择 (点击选择目标点)")
+        print("2. 大模型自动选择")
+        
+        while True:
+            try:
+                choice = input("请输入选择 (1 或 2): ").strip()
+                if choice in ['1', '2']:
+                    break
+                else:
+                    print("无效选择，请输入 1 或 2")
+            except KeyboardInterrupt:
+                return False         
+  
+        if choice == '1':
+            # 手动选择模式
+            return self._manual_point_selection()
+        else:
+            # 大模型自动选择模式
+            return self._ai_point_selection()
+    
+    def _manual_point_selection(self):
+        """手动点选择模式"""
+        self.logger.info("进入手动选择模式")
         self.logger.info("点击选择目标点，默认中心点，回车进入下一阶段, ESC退出程序")
 
         # 先创建窗口，然后设置鼠标回调
@@ -177,6 +204,82 @@ class GraspController:
         
         cv2.destroyAllWindows()
         return True
+    
+    def _ai_point_selection(self):
+        """大模型自动点选择模式"""
+        self.logger.info("进入大模型自动选择模式")
+        
+        # 获取初始图像
+        color_img, depth_img = self.get_images()
+        if color_img is None:
+            self.logger.error("无法获取图像")
+            return False
+        
+        # 保存最后的图像用于后续处理
+        self.last_color_image = color_img.copy()
+        self.last_depth_image = depth_img.copy()
+        
+        # 使用AI选择点
+        selected_point = self.ai_select_point(color_img)
+        if selected_point is None:
+            self.logger.error("AI选择点失败，使用默认中心点")
+            self.selected_point = [320, 240]
+        
+        self.selected_point = selected_point
+        
+        # 显示选择的点和图像
+        display_img = color_img.copy()
+        display_img = self.draw_selected_point(display_img)
+        
+        # 添加说明文字
+        cv2.putText(display_img, "AI selected point, Press Enter to continue", 
+                   (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        
+        cv2.imshow("AI Point Selection", display_img)
+        
+        # 等待用户按回车继续
+        while True:
+            key = cv2.waitKey(1) & 0xFF
+            if key == 27:  # ESC
+                cv2.destroyAllWindows()
+                return False
+            elif key == 13:  # Enter
+                break
+        
+        cv2.destroyAllWindows()
+        return True
+    
+    def ai_select_point(self, image: np.ndarray) -> Optional[List[int]]:
+        """
+        大模型自动选择点
+        
+        Args:
+            image: 输入图像 (BGR格式)
+            
+        Returns:
+            Optional[List[int]]: 选择的点坐标 [x, y]，如果失败返回None
+        """
+        # TODO: 实现大模型自动选择点的逻辑
+        # 这里需要您来实现具体的AI选择逻辑
+        # 示例实现（请替换为您的实际AI模型）:
+        
+        try:
+            # 将BGR图像转换为RGB格式（如果需要）
+            rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            
+            # 调用您的大模型进行点选择
+            # selected_point = your_ai_model.select_point(rgb_image)
+            
+            # 临时实现：选择图像中心点
+            height, width = image.shape[:2]
+            center_x, center_y = width // 2, height // 2
+            
+            self.logger.info(f"AI选择中心点: ({center_x}, {center_y})")
+            return [center_x, center_y]
+            
+        except Exception as e:
+            self.logger.error(f"AI选择点失败: {str(e)}")
+            return None
     
     def stage2_sam_segmentation(self):
         """阶段2: SAM分割推理"""
