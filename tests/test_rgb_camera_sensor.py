@@ -128,7 +128,7 @@ def test_multiple_cameras():
 
 if __name__ == "__main__":
     # 运行基本测试
-    test_rgb_camera_sensor()
+    # test_rgb_camera_sensor()
     
     # 可选：运行多摄像头测试
-    # test_multiple_cameras() 
+    test_multiple_cameras() 

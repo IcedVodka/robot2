@@ -47,13 +47,15 @@ class RealmanController:
             self.hand_grip_angles = hand_config.get('grip_angles', [1000, 14000, 14000, 14000, 14000, 10000])
             self.hand_release_angles = hand_config.get('release_angles', [4000, 17800, 17800, 17800, 17800, 10000])
             self.arm_init_joints = robot_config.get('arm_init_joints', [0, 0, 90, 0, 90, 0])
+            self.arm_fang_joints = robot_config.get('arm_fang_joints',  [-90, 0, 90, 0, 90, 0])
             self.arm_move_speed = robot_config.get('arm_move_speed', 20)
-            self.logger.info(f"读取robot_config.yaml成功，hand_grip_angles: {self.hand_grip_angles}, hand_release_angles: {self.hand_release_angles}, arm_init_joints: {self.arm_init_joints}")
+            self.logger.info(f"读取robot_config.yaml成功，hand_grip_angles: {self.hand_grip_angles}, hand_release_angles: {self.hand_release_angles}, arm_init_joints: {self.arm_init_joints}, arm_fang_joints: {self.arm_fang_joints}, arm_move_speed: {self.arm_move_speed}")
         except Exception as e:
             self.logger.warning(f"读取robot_config.yaml失败，使用默认参数: {e}")
             self.hand_grip_angles = [1000, 14000, 14000, 14000, 14000, 10000]
             self.hand_release_angles = [4000, 17800, 17800, 17800, 17800, 10000]
             self.arm_init_joints = [0, 0, 90, 0, 90, 0]
+            self.arm_fang_joints =  [-90, 0, 90, 0, 90, 0]
 
     def set_up(self, rm_ip: str, port: int) -> None:
         """
@@ -155,6 +157,31 @@ class RealmanController:
         将机械臂移动到全局变量arm_init_joints定义的初始位置
         """
         self.set_arm_joints_block(self.arm_init_joints)
+
+    def set_arm_fang_joint(self) -> None:
+        """
+        将机械臂移动到放置位置（arm_fang_joints定义的位置）
+        """
+        self.set_arm_joints_block(self.arm_fang_joints)
+
+    def set_pose_block(self, pose: List[float],linear: bool = True) -> None:
+        """
+        将机械臂末端移动到指定位置
+        """
+        try:
+            if len(pose) != 6:
+                self.logger.error(f"Invalid joint length: {len(pose)}, expected 6")
+                raise ValueError(f"Invalid joint length: {len(pose)}, expected 6")
+            if linear:
+                success = self.robot.rm_movel(pose, self.arm_move_speed, 0, 0, 1)
+            else:
+                success = self.robot.rm_movej_p(pose, self.arm_move_speed, 0, 0, 1)
+            if success != 0:
+                self.logger.error("Failed to set joint angles")
+                raise RuntimeError("Failed to set joint angles")
+        except Exception as e:
+            self.logger.error(f"Error moving robot: {str(e)}")
+            raise RuntimeError(f"Error moving robot: {str(e)}")
 
     def set_hand_angle(self, hand_angle: List[int], block: bool = True, timeout: int = 10) -> int:
         if not self.is_hand:

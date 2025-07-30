@@ -55,4 +55,5 @@ class SuctionController:
 
     def __del__(self):
         if self.ser:
+            self.close()
             self.ser.close() 

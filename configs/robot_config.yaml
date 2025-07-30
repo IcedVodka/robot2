@@ -2,7 +2,7 @@
 robot:
   arm_init_joints: [0, -90, 90, 0, 90, 0]  # 机械臂6个关节的初始角度    
   arm_move_speed: 20  # 机械臂运动速度，单位%，范围 1~100
-  arm_fang_joints: [90, 0, -90, 0, -90, -90]
+  arm_fang_joints: [-90, 0, 90, 0, 90, 0]
     
   # 手部控制配置
   hand:

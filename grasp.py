@@ -81,8 +81,7 @@ class GraspController:
 
 
         # 平面抓取参数
-        self.adjustment = [0.1, -0.025] #安全预备位置在计算位置的基础上向后调整0.1m，最终抓取位置在计算位置的基础上向前调整0.025m
-        self.arm_fang_joints = [90, 0, -90, 0, -90, -90]
+        self.adjustment = [0.1, 0.05] #安全预备位置在计算位置的基础上向后调整0m，最终抓取位置在计算位置的基础上向前调整0.025m
 
         self._init_components()
 
@@ -248,32 +247,35 @@ class GraspController:
         """阶段3: 机械臂抓取"""
         self.logger.info("=== 阶段3: 机械臂抓取 ===")
         self.logger.info("正在执行抓取动作...")
+
         #用户输入y/n，y则执行抓取，n则不执行
-        user_input = input("请输入y/n: ")
-        if user_input == "y":
-            self.suction.suck()
-            self.robot.set_arm_joints_block(self.grasp_pose[1])
-            time.sleep(1)
-            self.robot.set_arm_joints_block(self.grasp_pose[2])
-            time.sleep(1)
-        else:
-            self.logger.info("用户选择不执行抓取")
-            return False
+        # user_input = input("请输入y/n: ")
+        # if user_input == "y":
+        self.suction.suck()
+        self.robot.set_pose_block(self.grasp_pose[1],linear=False)
+        time.sleep(2)
+        self.robot.set_pose_block(self.grasp_pose[2],linear=True)
+        time.sleep(2)
+        # else:
+        #     self.logger.info("用户选择不执行抓取")
+        #     return False
         
         # 等待用户按回车继续
-        input("按回车键进入下一阶段...")        
+        # input("按回车键进入下一阶段...")        
         return True
     
     def stage4_robot_reset(self):
         """阶段4: 机械臂复位"""
         self.logger.info("=== 阶段4: 机械臂复位 ===")
         self.logger.info("正在复位机械臂...")
+        self.robot.set_pose_block(self.grasp_pose[1],linear=True)
+        time.sleep(1.5)
         self.robot.set_arm_init_joint() 
-        time.sleep(1)       
-        input("按回车键移动到放置位置...")
-        self.robot.set_arm_joints_block(self.arm_fang_joints)
-        time.sleep(1)
-        input("按回车键移动到初始位置...")
+        time.sleep(1.5)       
+        # input("按回车键移动到放置位置...")
+        self.robot.set_arm_fang_joint()
+        time.sleep(1.5)
+        # input("按回车键松开吸盘并移动到初始位置...")
         self.suction.release()
         self.robot.set_arm_init_joint()
         time.sleep(1)
