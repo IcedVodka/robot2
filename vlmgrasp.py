@@ -2,11 +2,11 @@
 """
 机械臂抓取程序 - 简化版本
 
-阶段1: 从RealsenseSensor获取彩色和深度图像，通过OpenCV窗口展示
-       用户可以选择一个点（默认中心），按回车进入下一阶段
+阶段1: 从RealsenseSensor获取彩色和深度图像，通过大模型自动识别目标点
+       用户确认后进入下一阶段
 
-阶段2: 基于用户选择的点和深度图像，使用SAM模型进行推理
-       展示mask图像，按回车进入下一阶段
+阶段2: 基于识别到的点和深度图像，使用compute_pose计算抓取位置
+       展示计算结果，按回车进入下一阶段
 
 阶段3: 机械臂执行抓取动作，按回车进入下一阶段
 
@@ -31,10 +31,8 @@ from llm_test import detect_medicine_box
 sys.path.append(os.path.abspath('.'))
 
 from Robot.sensor.depth_camera import RealsenseSensor
-from policy.segmentation import SamPredictor
 from Robot.robot.realman_controller import RealmanController
 from utils.logger import get_logger
-from utils.vertical_grab.interface import vertical_catch
 from utils.others import print_grasp_poses
 
 class GraspController:
@@ -47,14 +45,12 @@ class GraspController:
         # 初始化组件
         self.sensor = None
         self.robot = None
-        self.sam_model = None
         self.suction = None
         
         # 状态变量
         self.selected_point = [320, 240]
         self.last_depth_image = None
         self.last_color_image = None
-        self.mask_result = None
         self.grasp_pose = None
               
         # 窗口名称
@@ -81,15 +77,12 @@ class GraspController:
         self.robot_ip = "192.168.1.18"
         self.robot_port = 8080
 
-
         # 平面抓取参数
-        self.adjustment = [0.1, 0.05] #安全预备位置在计算位置的基础上向后调整0m，最终抓取位置在计算位置的基础上向前调整0.025m
+        self.adjustment = [0.13, 0.08] #安全预备位置在计算位置的基础上向后调整0m，最终抓取位置在计算位置的基础上向前调整0.025m
 
         self._init_components()
 
     def _init_components(self):
-        self.sam_model = SamPredictor("/home/gml-cwl/code/robot2/assets/weights/sam_b.pt")
-
         self.sensor = RealsenseSensor("hand_camera")
         self.sensor.set_up(camera_serial=self.camera_serial, is_depth=True)
         
@@ -101,12 +94,6 @@ class GraspController:
 
         self.logger.info("所有组件初始化完成")
         return True        
-    
-    def mouse_callback(self, event, x, y, flags, param):
-        """鼠标回调函数，处理点选择"""
-        if event == cv2.EVENT_LBUTTONDOWN:
-            self.selected_point = [x, y]
-            self.logger.info(f"用户选择点: ({x}, {y})")
     
     def get_images(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         """获取彩色和深度图像"""
@@ -140,75 +127,11 @@ class GraspController:
                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
         return image
     
-    def stage1_image_selection(self):
-        """阶段1: 图像展示和点选择"""
-        self.logger.info("=== 阶段1: 图像展示和点选择 ===")
-        
-        # 询问用户选择模式
-        print("\n请选择点选择模式:")
-        print("1. 手动选择 (点击选择目标点)")
-        print("2. 大模型自动选择")
-        
-        while True:
-            try:
-                choice = input("请输入选择 (1 或 2): ").strip()
-                if choice in ['1', '2']:
-                    break
-                else:
-                    print("无效选择，请输入 1 或 2")
-            except KeyboardInterrupt:
-                return False         
-  
-        if choice == '1':
-            # 手动选择模式
-            return self._manual_point_selection()
-        else:
-            # 大模型自动选择模式
-            return self._ai_point_selection()
-    
-    def _manual_point_selection(self):
-        """手动点选择模式"""
-        self.logger.info("进入手动选择模式")
-        self.logger.info("点击选择目标点，默认中心点，回车进入下一阶段, ESC退出程序")
+    def stage1_ai_point_selection(self):
+        """阶段1: 大模型自动点选择"""
+        self.logger.info("=== 阶段1: 大模型自动点选择 ===")
 
-        # 先创建窗口，然后设置鼠标回调
-        cv2.namedWindow(self.window_name)
-        cv2.setMouseCallback(self.window_name, self.mouse_callback)
-        
-        while True:
-            # 获取图像
-            color_img, depth_img = self.get_images()
-            if color_img is None:
-                self.logger.warning("无法获取图像，重试中...")
-                time.sleep(0.1)
-                continue
-            
-            # 保存最后的图像用于后续处理
-            self.last_color_image = color_img.copy()
-            self.last_depth_image = depth_img.copy()
-            
-            # 显示彩色图像
-            display_img = color_img.copy()
-            display_img = self.draw_selected_point(display_img)
-            
-            # 添加说明文字
-            cv2.putText(display_img, "Click to select point, Enter to continue", 
-                       (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)            
-            cv2.imshow(self.window_name, display_img)
-            
-            # 处理按键
-            key = cv2.waitKey(1) & 0xFF
-            if key == 27:  # ESC
-                return False
-            elif key == 13:  # Enter                
-                break
-        
-        cv2.destroyAllWindows()
-        return True
-    
-    def _ai_point_selection(self):
-        """大模型自动点选择模式"""
-        self.logger.info("进入大模型自动选择模式")
+        time.sleep(2)
         
         # 获取初始图像
         color_img, depth_img = self.get_images()
@@ -225,8 +148,8 @@ class GraspController:
         if selected_point is None:
             self.logger.error("AI选择点失败，使用默认中心点")
             self.selected_point = [320, 240]
-        
-        self.selected_point = selected_point
+        else:
+            self.selected_point = selected_point
         
         # 显示选择的点和图像
         display_img = color_img.copy()
@@ -290,70 +213,44 @@ class GraspController:
             self.logger.error(f"AI选择点失败: {str(e)}")
             return None
     
-    def stage2_sam_segmentation(self):
-        """阶段2: SAM分割推理"""
-        self.logger.info("=== 阶段2: SAM分割推理 ===")
-        self.logger.info("正在使用SAM模型进行分割...")
+    def stage2_compute_grasp_pose(self):
+        """阶段2: 计算抓取位置"""
+        self.logger.info("=== 阶段2: 计算抓取位置 ===")
+        self.logger.info("正在计算抓取位置...")
         
-        if self.last_color_image is None or self.selected_point is None:
+        if self.last_depth_image is None or self.selected_point is None:
             self.logger.error("缺少必要的图像数据或选择点")
             return False
         
         try:
-            # 将BGR图像转换为RGB格式
-            rgb_image = cv2.cvtColor(self.last_color_image, cv2.COLOR_BGR2RGB)
+            # 获取当前机械臂状态
+            state = self.robot.get_state()
+            pose = state["pose"]
+            self.logger.info(f"当前机械臂姿态: {pose}")
+
+            # 使用center_compute_pose计算抓取位置
+            computed_object_pose, prepared_angle_pose, finally_pose = center_compute_pose(
+                depth_frame=self.last_depth_image,
+                color_intr=self.color_intr,
+                current_pose=pose,
+                adjustment=self.adjustment,
+                point=self.selected_point,
+                rotation_matrix=self.rotation_matrix,
+                translation_vector=self.translation_vector
+            )
+
+            self.grasp_pose = (computed_object_pose, prepared_angle_pose, finally_pose)
+
+            # 打印抓取位置信息
+            print_grasp_poses(self.grasp_pose[0], self.grasp_pose[1], self.grasp_pose[2], self.logger)
             
-            # 使用SAM进行分割
-            center, mask = self.sam_model.predict(rgb_image, points=self.selected_point)
-            
-            if mask is not None:
-                self.mask_result = mask
-                self.logger.info(f"SAM分割成功，中心点: {center}")
-                
-                # 显示分割结果
-                cv2.imshow("SAM Segmentation Result", mask)
-
-                # 计算抓取位置
-                self.calculate_grasp_position()
-                self.logger.info("抓取位置计算完成")                
-
-                self.logger.info("分割结果已显示，在屏幕按任意键继续...")                
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
-
-
-
-
-                return True
-            else:
-                self.logger.warning("SAM分割失败，未得到有效掩码")
-                return False
+            self.logger.info("抓取位置计算完成")
+            input("按回车键进入下一阶段...")
+            return True
                 
         except Exception as e:
-            self.logger.error(f"SAM分割失败: {str(e)}")
+            self.logger.error(f"计算抓取位置失败: {str(e)}")
             return False
-    
-    def calculate_grasp_position(self) :
-        state = self.robot.get_state()
-        pose = state["pose"]
-
-        self.logger.info(f"当前机械臂姿态: {pose}")
-
-        computed_object_pose, prepared_angle_pose, finally_pose = vertical_catch(
-            mask=self.mask_result,
-            depth_frame=self.last_depth_image,
-            color_intr=self.color_intr,
-            current_pose=pose,
-            adjustment=self.adjustment,
-            vertical_rx_ry_rz=None,
-            rotation_matrix=self.rotation_matrix,
-            translation_vector=self.translation_vector,
-            use_point_depth_or_mean=True
-        )
-
-        self.grasp_pose = (computed_object_pose, prepared_angle_pose, finally_pose)
-
-        print_grasp_poses(self.grasp_pose[0], self.grasp_pose[1], self.grasp_pose[2],self.logger)
     
     def stage3_robot_grasp(self):
         """阶段3: 机械臂抓取"""
@@ -386,9 +283,9 @@ class GraspController:
         time.sleep(1.5)       
         # input("按回车键移动到放置位置...")
         self.robot.set_arm_fang_joint()
-        self.suction.release()
         time.sleep(1.5)
-        # input("按回车键松开吸盘并移动到初始位置...")        
+        # input("按回车键松开吸盘并移动到初始位置...")
+        self.suction.release()
         self.robot.set_arm_init_joint()
         time.sleep(1)
         return True
@@ -399,8 +296,8 @@ class GraspController:
         self.logger.info("机械臂抓取程序启动")
         self.logger.info("=== 机械臂抓取程序 ===")
         self.logger.info("程序将按以下阶段运行:")
-        self.logger.info("阶段1: 图像展示和点选择")
-        self.logger.info("阶段2: SAM分割推理")
+        self.logger.info("阶段1: 大模型自动点选择")
+        self.logger.info("阶段2: 计算抓取位置")
         self.logger.info("阶段3: 机械臂抓取")
         self.logger.info("阶段4: 机械臂复位")
         self.logger.info("按ESC退出程序")
@@ -408,13 +305,13 @@ class GraspController:
         
         try:
             while True:
-                # 阶段1: 图像展示和点选择
-                if not self.stage1_image_selection():
+                # 阶段1: 大模型自动点选择
+                if not self.stage1_ai_point_selection():
                     break
                 
-                # 阶段2: SAM分割推理
-                if not self.stage2_sam_segmentation():
-                    self.logger.warning("SAM分割失败，重新开始...")
+                # 阶段2: 计算抓取位置
+                if not self.stage2_compute_grasp_pose():
+                    self.logger.warning("计算抓取位置失败，重新开始...")
                     continue
                 
                 # 阶段3: 机械臂抓取
