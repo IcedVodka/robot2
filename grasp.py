@@ -25,6 +25,7 @@ from typing import Tuple, Optional, Dict, Any, List
 from utils.logger import setup_logger, get_logger
 from Robot.sensor.suction_sensor import SuctionController
 from utils.vertical_grab.compute_pose import center_compute_pose
+from llm_test import detect_medicine_box
 
 # 添加项目路径
 sys.path.append(os.path.abspath('.'))
@@ -259,23 +260,31 @@ class GraspController:
         Returns:
             Optional[List[int]]: 选择的点坐标 [x, y]，如果失败返回None
         """
-        # TODO: 实现大模型自动选择点的逻辑
-        # 这里需要您来实现具体的AI选择逻辑
-        # 示例实现（请替换为您的实际AI模型）:
-        
         try:
-            # 将BGR图像转换为RGB格式（如果需要）
-            rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # 保存图片到临时文件
+            temp_image_path = "/tmp/current_image.jpg"
+            cv2.imwrite(temp_image_path, image)
+            self.logger.info(f"图片已保存到: {temp_image_path}")
             
-            # 调用您的大模型进行点选择
-            # selected_point = your_ai_model.select_point(rgb_image)
+            # 让用户输入要识别的药品名称
+            print("\n请输入要识别的药品名称:")
+            medicine_name = input().strip()
             
-            # 临时实现：选择图像中心点
-            height, width = image.shape[:2]
-            center_x, center_y = width // 2, height // 2
+            if not medicine_name:
+                self.logger.warning("未输入药品名称，使用默认中心点")
+                return [320, 240]
             
-            self.logger.info(f"AI选择中心点: ({center_x}, {center_y})")
-            return [center_x, center_y]
+            self.logger.info(f"正在识别药品: {medicine_name}")
+            
+            # 调用detect_medicine_box获取坐标
+            coordinates = detect_medicine_box(temp_image_path, medicine_name)
+            
+            if coordinates and coordinates != [0, 0]:
+                self.logger.info(f"成功识别药品 '{medicine_name}'，坐标: {coordinates}")
+                return coordinates
+            else:
+                self.logger.warning(f"未找到药品 '{medicine_name}'，使用默认中心点")
+                return [320, 240]
             
         except Exception as e:
             self.logger.error(f"AI选择点失败: {str(e)}")

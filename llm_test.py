@@ -142,7 +142,7 @@ def detect_medicine_box(image_path, medicine_name, api_key=None, base_url="https
 # 测试函数
 def test_detection():
     """测试药品检测功能"""
-    test_image = "D:/code/robot2/data/test_images/camera_12_20250730_165750.jpg"
+    test_image = "/home/gml-cwl/code/robot2/data/test_images/camera_12_20250730_165750.jpg"
     medicine_name = "百合固今片"
     
     print(f"正在检测图片中的 '{medicine_name}'...")
