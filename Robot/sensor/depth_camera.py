@@ -103,7 +103,7 @@ class RealsenseSensor(VisionSensor):
             if not (isinstance(resolution, list) and len(resolution) == 2):
                 raise ValueError("resolution参数必须为包含两个值的list，如[640, 480]")
             self.resolution = resolution
-        width, height = self.resolution
+        width, height = self.resolution[0], self.resolution[1] 
         self.logger.info(f"开始设置相机，序列号: {camera_serial}, 深度模式: {is_depth}, 分辨率: {width}x{height}")
 
         try:

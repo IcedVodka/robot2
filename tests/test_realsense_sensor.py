@@ -16,19 +16,20 @@ import cv2
 import numpy as np
 import time
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.logger import setup_logger
 
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from Robot.sensor.depth_camera import RealsenseSensor, print_realsense_devices
 
-def test_realsense_sensor():
+def test_realsense_sensor(camera_serial):
     """测试RealSense传感器功能"""
     print("=== RealSense传感器测试程序 ===")
     
     # 相机序列号 - 请根据实际情况修改
-    camera_serial = "327122072195"  # 请替换为实际的相机序列号
-    camera_serial2 = "207522073950"
+    camera_serial = camera_serial  # 请替换为实际的相机序列号
     
     sensor = None
     try:
@@ -38,7 +39,7 @@ def test_realsense_sensor():
         
         # 2. 设置相机参数
         print("2. 设置相机参数...")
-        sensor.set_up(camera_serial=camera_serial2, is_depth=True)
+        sensor.set_up(camera_serial=camera_serial, is_depth=True,resolution=[1280,720])
         
         # 3. 获取并显示图像
         print("3. 开始获取图像数据...")
@@ -80,10 +81,19 @@ def test_realsense_sensor():
                 elif key == ord('s'):
                     # 保存当前帧
                     timestamp = int(time.time())
-                    cv2.imwrite(f"realsense_color_{timestamp}.jpg", color_frame)
+                    # 确保目录存在
+                    os.makedirs("data/cam_capture", exist_ok=True)
+                    
+                    color_filename = f"realsense_color_{camera_serial}_{timestamp}.jpg"
+                    color_save_path = os.path.join("data", "cam_capture", color_filename)
+                    cv2.imwrite(color_save_path, color_frame)
+                    
                     if "depth" in data and data["depth"] is not None:
-                        cv2.imwrite(f"realsense_depth_{timestamp}.png", data["depth"])
-                    print(f"已保存图像: realsense_color_{timestamp}.jpg")
+                        depth_filename = f"realsense_depth_{camera_serial}_{timestamp}.png"
+                        depth_save_path = os.path.join("data", "cam_capture", depth_filename)
+                        cv2.imwrite(depth_save_path, data["depth"])
+                    
+                    print(f"已保存图像: {color_filename}")
             else:
                 print("未获取到图像数据")
                 time.sleep(0.1)
@@ -108,5 +118,6 @@ def test_realsense_sensor():
         print("测试程序结束")
 
 if __name__ == "__main__":
-    print_realsense_devices()
-    test_realsense_sensor() 
+    setup_logger()
+    # print_realsense_devices()
+    test_realsense_sensor("327122072195") 

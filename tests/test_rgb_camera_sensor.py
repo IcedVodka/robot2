@@ -70,8 +70,12 @@ def test_rgb_camera_sensor():
                 elif key == ord('s'):
                     # 保存当前帧
                     timestamp = int(time.time())
-                    filename = f"rgb_camera_{timestamp}.jpg"
-                    cv2.imwrite(filename, color_frame)
+                    # 确保目录存在
+                    os.makedirs("data/cam_capture", exist_ok=True)
+                    
+                    filename = f"rgb_camera_{camera_id}_{timestamp}.jpg"
+                    save_path = os.path.join("data", "cam_capture", filename)
+                    cv2.imwrite(save_path, color_frame)
                     print(f"已保存图像: {filename}")
             else:
                 print("未获取到图像数据")
@@ -128,7 +132,7 @@ def test_multiple_cameras():
 
 if __name__ == "__main__":
     # 运行基本测试
-    # test_rgb_camera_sensor()
+    test_rgb_camera_sensor()
     
     # 可选：运行多摄像头测试
-    test_multiple_cameras() 
+    # test_multiple_cameras() 

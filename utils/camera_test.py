@@ -84,7 +84,7 @@ def test_cameras(max_cameras: int = 10, display_time: int = 30) -> List[Tuple[in
                     # 拍照功能
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     filename = f"camera_{camera_index}_{timestamp}.jpg"
-                    save_path = os.path.join("data", "test_images", filename)
+                    save_path = os.path.join("data", "cam_capture", filename)
                     
                     # 确保目录存在
                     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -194,7 +194,7 @@ def test_camera_with_info(camera_index: int, display_time: int = 30) -> bool:
                 # 拍照功能
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"camera_{camera_index}_{timestamp}.jpg"
-                save_path = os.path.join("data", "test_images", filename)
+                save_path = os.path.join("data", "cam_capture", filename)
                 
                 # 确保目录存在
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -309,8 +309,8 @@ def test_realsense_cameras():
                         color_filename = f"realsense_color_{serial}_{timestamp}.jpg"
                         depth_filename = f"realsense_depth_{serial}_{timestamp}.png"
                         
-                        color_save_path = os.path.join("data", "test_images", color_filename)
-                        depth_save_path = os.path.join("data", "test_images", depth_filename)
+                        color_save_path = os.path.join("data", "cam_capture", color_filename)
+                        depth_save_path = os.path.join("data", "cam_capture", depth_filename)
                         
                         # 确保目录存在
                         os.makedirs(os.path.dirname(color_save_path), exist_ok=True)
@@ -369,7 +369,7 @@ if __name__ == "__main__":
         
         if choice == "1":
             # 快速测试所有相机
-            results = test_cameras(max_cameras=20, display_time=30)
+            results = test_cameras(max_cameras=20, display_time=100)
             
             # 询问是否要详细测试某个相机
             working_cameras = [idx for idx, working in results if working]
