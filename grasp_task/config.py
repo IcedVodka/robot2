@@ -28,48 +28,11 @@ class GraspConfig:
         self.arm_move_speed = 20
         
         # 平面抓取参数
-        self.adjustment = [0.1, 0.05]  # 安全预备位置和最终抓取位置的调整参数
+        self.adjustment = [0.1, 0.03]  # 安全预备位置和最终抓取位置的调整参数
 
         # 处方rgb相机参数
-        self.rgb_camera_id = 0
+        self.rgb_camera_id = 6
 
         # 其他配置参数
-        self.sam_model_path = "/home/gml-cwl/code/robot2/assets/weights/sam_b.pt"
-        
-    def update_camera_params(self, sensor: Optional[RealsenseSensor] = None) -> bool:
-        """
-        从传感器更新相机参数
-        Args:
-            sensor: 可选的传感器实例，如果未提供，将创建新的实例
-        Returns:
-            bool: 更新是否成功
-        """
-        try:
-            # 如果没有传入sensor，创建一个临时的
-            if sensor is None:
-                temp_sensor = RealsenseSensor("temp_camera")
-                temp_sensor.set_up(camera_serial=self.camera_serial, is_depth=True)
-            else:
-                temp_sensor = sensor
-            
-            # 获取相机内参
-            intr = temp_sensor.get_intrinsics()
-            if intr:
-                self.color_intr = {
-                    'ppx': intr.ppx,
-                    'ppy': intr.ppy,
-                    'fx': intr.fx,
-                    'fy': intr.fy
-                }
-            
-            # 如果使用的是临时sensor，需要清理
-            if sensor is None:
-                temp_sensor.cleanup()
-                
-            return True
-        except Exception as e:
-            print(f"更新相机参数失败: {str(e)}")
-            return False
-
-
-
+        self.sam_model_path = "/home/gml-cwl/code/robot2/assets/weights/sam_b.pt"        
+   

@@ -3,18 +3,17 @@
 import sys
 import os
 import logging
+
+
 from utils.logger import setup_logger, get_logger
 from policy.segmentation import SamPredictor
 import cv2
 
-# 添加项目路径
-sys.path.append(os.path.abspath('.'))
-
-from .config import GraspConfig
-from .image_handler import ImageHandler
-from .point_selector import PointSelector
-from .robot_control import RobotController
-from .prescription_handler import PrescriptionHandler
+from grasp_task.config import GraspConfig
+from grasp_task.image_handler import ImageHandler
+from grasp_task.point_selector import PointSelector
+from grasp_task.robot_control import RobotController
+from grasp_task.prescription_handler import PrescriptionHandler
 
 class GraspTask:
     def __init__(self):
@@ -25,7 +24,7 @@ class GraspTask:
         self.image_handler = ImageHandler(self.config, self.logger)
         self.point_selector = PointSelector(self.image_handler, self.logger)
         self.robot_controller = RobotController(self.config, self.logger)
-        self.prescription_handler = PrescriptionHandler(camera_id=1, logger=self.logger)
+        self.prescription_handler = PrescriptionHandler(self.config, self.logger)
         
         # SAM模型
         self.sam_model = None
@@ -76,7 +75,7 @@ class GraspTask:
     def run_medicine_selection(self) -> bool:
         """选择下一个要抓取的药品"""
         medicine = self.prescription_handler.next_medicine()
-        self.garaph_machine = medicine
+        self.grasp_machine = medicine
         if medicine is None:
             self.logger.info("所有药品处理完成")            
             return False
@@ -88,20 +87,23 @@ class GraspTask:
         """运行点选择阶段"""
         self.logger.info("=== 阶段1: 图像展示和点选择 ===")
         
-        print("\n请选择点选择模式:")
-        print("1. 手动选择 (点击选择目标点)")
-        print("2. 大模型自动选择")
+        # print("\n请选择点选择模式:")
+        # print("1. 手动选择 (点击选择目标点)")
+        # print("2. 大模型自动选择")
         
-        while True:
-            try:
-                choice = input("请输入选择 (1 或 2): ").strip()
-                if choice in ['1', '2']:
-                    break
-                print("无效选择，请输入 1 或 2")
-            except KeyboardInterrupt:
-                return False
+        # while True:
+        #     try:
+        #         choice = input("请输入选择 (1 或 2): ").strip()
+        #         if choice in ['1', '2']:
+        #             break
+        #         print("无效选择，请输入 1 或 2")
+        #     except KeyboardInterrupt:
+        #         return False
+        # return self.point_selector.manual_select() if choice == '1' else self.point_selector.ai_select(self.grasp_machine)
+
+        self.logger.info(f"正在使用大模型自动选择中心点: {self.grasp_machine}")
+        return self.point_selector.ai_select(self.grasp_machine)
         
-        return self.point_selector.manual_select() if choice == '1' else self.point_selector.ai_select(self.grasp_machine)
 
     def run_segmentation(self) -> bool:
         """运行分割阶段"""
@@ -155,7 +157,7 @@ class GraspTask:
 
     def run(self):
         """主运行循环"""
-        from .states import GraspState, StateMachine
+        from grasp_task.states import GraspState, StateMachine
         
         self.logger.info("基于处方的机械臂抓取系统启动")
         self.logger.info("程序将按以下阶段运行:")
@@ -166,13 +168,8 @@ class GraspTask:
         self.logger.info("阶段5: 目标分割")
         self.logger.info("阶段6: 机械臂抓取")
         self.logger.info("阶段7: 机械臂复位")
-        self.logger.info("按ESC键退出程序，按Ctrl+C中断当前操作")
-        
-        # 启用调试模式
-        debug_mode = True
-        if debug_mode:
-            self.logger.setLevel(logging.DEBUG)
-            self.logger.debug("调试模式已启用")
+        self.logger.info("按ESC键退出程序，按Ctrl+C中断当前操作")       
+
         
         # 创建状态机
         state_machine = StateMachine(self.logger)
@@ -190,7 +187,7 @@ class GraspTask:
         
         try:
             # 开始状态机循环
-            while state_machine.current_state not in [GraspState.IDLE, GraspState.ERROR]:
+            while state_machine.current_state is not GraspState.ERROR:
                 # 运行当前状态的处理器
                 result = state_machine.run()
                 

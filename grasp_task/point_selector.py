@@ -96,9 +96,24 @@ class PointSelector:
                 return False         
             
             self.logger.info(f"模型正在识别药品: {medicine_name}")
-            # 直接使用numpy数组进行识别
-            image_input = ImageInput(image_np=color_img)
+            # 将图像保存为临时JPG文件
+            temp_img_path = tempfile.mktemp(suffix='.jpg')
+            cv2.imwrite(temp_img_path, color_img)
+            self.logger.info(f"图像已保存到临时文件: {temp_img_path}")
+            
+            time.sleep(1.5)
+            # 使用图片路径进行识别
+            image_input = ImageInput(image_path=temp_img_path)
             x, y = self.vision_api.detect_medicine_box(image_input, medicine_name)
+            
+            # 调试模式：不清理临时文件，方便查看保存的图片
+            self.logger.info(f"调试模式：临时文件保留在 {temp_img_path}")
+            # 清理临时文件（调试时注释掉）
+            # try:
+            #     os.remove(temp_img_path)
+            #     self.logger.info("临时文件已清理")
+            # except Exception as e:
+            #     self.logger.warning(f"清理临时文件失败: {str(e)}")
             
             if x > 0 and y > 0:
                 self.selected_point = [x, y]

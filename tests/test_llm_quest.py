@@ -1,7 +1,13 @@
-from utils.llm_quest import *
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils.llm_quest import VisionAPI, ImageInput
+
+
 def test_prescription_recognition():
     """测试处方单识别功能"""
-    test_image = r"D:\code\robot2\data\test_images\realsense_color_1753953354.jpg"
+    test_image = "../data/test_images/camera_12_20250730_165750.jpg"
     
     try:
         # 创建API实例
@@ -21,7 +27,7 @@ def test_prescription_recognition():
 
 def test_medicine_box_detection():
     """测试药品盒检测功能"""
-    test_image = r"D:\code\robot2\data\test_images\camera_12_20250730_165750.jpg"
+    test_image = "/tmp/tmpb980wlln.jpg"
     
     try:
         # 创建API实例
@@ -31,7 +37,7 @@ def test_medicine_box_detection():
         image_input = ImageInput(image_path=test_image)
         
         # 测试药品盒检测
-        medicine_name = "百合固金片"
+        medicine_name = "口炎清颗粒"
         print(f"正在检测图片中的 '{medicine_name}'...")
         x, y = api.detect_medicine_box(image_input, medicine_name)
         print(f"检测结果：[{x}, {y}]")
@@ -46,5 +52,4 @@ if __name__ == "__main__":
     test_prescription_recognition()
     
     print("\n=== 测试药品盒检测 ===")
-    test_medicine_box_detection()
-
+    test_medicine_box_detection() 

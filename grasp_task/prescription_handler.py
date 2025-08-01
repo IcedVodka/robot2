@@ -81,6 +81,7 @@ class PrescriptionHandler:
             return True
             
         except Exception as e:
+            self.medicines = []
             self.logger.error(f"处方识别失败: {str(e)}")
             return False
     
@@ -91,6 +92,8 @@ class PrescriptionHandler:
             
         self.current_medicine_index += 1
         if self.current_medicine_index >= len(self.medicines):
+            self.medicines = []
+            self.current_medicine_index = -1
             return None
             
         medicine = self.medicines[self.current_medicine_index]

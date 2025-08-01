@@ -25,14 +25,7 @@ class ImageHandler:
     def setup(self):
         """初始化相机"""
         self.sensor = RealsenseSensor("hand_camera")
-        self.sensor.set_up(camera_serial=self.config.camera_serial, is_depth=True)
-        
-        # 更新配置中的相机参数
-        if self.config.update_camera_params(self.sensor):
-            self.logger.info("相机参数已从传感器更新")
-        else:
-            self.logger.warning("无法从传感器更新相机参数，使用默认值")
-            
+        self.sensor.set_up(camera_serial=self.config.camera_serial, is_depth=True)       
         self.logger.info("相机初始化完成")
     
     def get_images(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:

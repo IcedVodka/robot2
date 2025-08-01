@@ -26,7 +26,7 @@ def test_rgb_camera_sensor():
     print("=== RGB摄像头传感器测试程序 ===")
     
     # 摄像头ID - 请根据实际情况修改
-    camera_id = 14  # 通常0是默认摄像头
+    camera_id = 6  # 通常0是默认摄像头
     
     sensor = None
     try:
