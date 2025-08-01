@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
 
 import cv2
+import logging
 import numpy as np
 from typing import Tuple, Optional
 from Robot.sensor.depth_camera import RealsenseSensor
+from grasp_task.config import GraspConfig
 
 class ImageHandler:
-    def __init__(self, config, logger):
+    def __init__(self, config: 'GraspConfig', logger: 'logging.Logger'):
+        """初始化 ImageHandler 类
+        
+        Args:
+            config (GraspConfig): 从 grasp_task/config.py 导入的配置对象，包含相机序列号等参数
+            logger (logging.Logger): 日志记录器对象，用于记录运行时信息
+        """
         self.config = config
         self.logger = logger
         self.sensor = None

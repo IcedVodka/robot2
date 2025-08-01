@@ -1,14 +1,23 @@
 import cv2
+import logging
 import numpy as np
 from typing import List, Optional, Tuple
 from utils.llm_quest import VisionAPI, ImageInput
+from Robot.sensor.rgb_camera import RgbCameraSensor
+from grasp_task.config import GraspConfig
 
 class PrescriptionHandler:
-    """处方处理器"""
-    def __init__(self, camera_id: int, logger):
-        self.camera_id = camera_id
+    """处方处理器，用于处方图像的采集和识别"""
+    def __init__(self, config: 'GraspConfig', logger: 'logging.Logger'):
+        """初始化处方处理器
+        
+        Args:
+            config (GraspConfig): 配置对象，包含相机参数等配置信息
+            logger (logging.Logger): 日志记录器对象
+        """
+        self.config = config
         self.logger = logger
-        self.cap = None
+        self.sensor = None
         self.vision_api = VisionAPI()
         self.medicines = []  # 识别到的药品列表
         self.current_medicine_index = -1
@@ -16,30 +25,34 @@ class PrescriptionHandler:
     def setup(self) -> bool:
         """初始化相机"""
         try:
-            self.cap = cv2.VideoCapture(self.camera_id)
-            if not self.cap.isOpened():
-                self.logger.error(f"无法打开相机 {self.camera_id}")
-                return False
+            self.sensor = RgbCameraSensor("prescription_camera")
+            self.sensor.set_up(camera_id=self.config.rgb_camera_id)  # 使用默认相机ID 0
+            self.logger.info("处方相机初始化完成")
             return True
         except Exception as e:
             self.logger.error(f"相机初始化失败: {str(e)}")
             return False
     
     def display_and_capture(self) -> Tuple[bool, Optional[np.ndarray]]:
-        """显示视频流并在用户确认时捕获图像"""
-        if not self.cap or not self.cap.isOpened():
+        """显示视频流并在用户确认时捕获图像
+        
+        Returns:
+            Tuple[bool, Optional[np.ndarray]]: 
+                - bool: 是否成功捕获图像
+                - Optional[np.ndarray]: 捕获的图像数据，失败时为None
+        """
+        if not self.sensor:
             self.logger.error("相机未初始化")
             return False, None
             
         while True:
-            ret, frame = self.cap.read()
-            if not ret:
+            data = self.sensor.get_information()
+            if not data or "color" not in data:
                 self.logger.error("无法读取相机图像")
                 return False, None
                 
-            # 显示图像
-            cv2.putText(frame, "请将处方放在框内，按回车确认", (10, 30),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            frame = data["color"]                
+
             cv2.imshow("Prescription Camera", frame)
             
             key = cv2.waitKey(1) & 0xFF
@@ -85,7 +98,7 @@ class PrescriptionHandler:
         return medicine
     
     def cleanup(self):
-        """清理资源"""
-        if self.cap:
-            self.cap.release()
+        """清理相机等资源"""
+        if self.sensor:
+            self.sensor.cleanup()
         cv2.destroyAllWindows()

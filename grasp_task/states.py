@@ -63,18 +63,6 @@ class StateMachine:
             }
         }
 
-    def set_error(self, error_state: GraspState, error_msg: str, exc_info: Optional[Exception] = None):
-        """记录错误信息"""
-        self.error_info = {
-            'state': error_state,
-            'message': error_msg,
-            'exception': str(exc_info) if exc_info else None
-        }
-        self.logger.error(f"在{error_state.name}状态发生错误: {error_msg}")
-        if exc_info:
-            self.logger.error(f"异常信息: {str(exc_info)}")
-        self.current_state = GraspState.ERROR
-
     def register_handler(self, state: GraspState, handler: Callable) -> None:
         """注册状态处理器"""
         self.state_handlers[state] = handler
@@ -84,16 +72,8 @@ class StateMachine:
         if self.current_state not in self.state_transitions:
             return None
         
-        next_state = self.state_transitions[self.current_state].get(success)
-        
-        # 如果是错误状态，打印之前记录的错误信息
-        if next_state == GraspState.ERROR and self.error_info:
-            self.logger.error(f"程序即将退出。")
-            self.logger.error(f"错误发生在: {self.error_info['state'].name}")
-            self.logger.error(f"错误信息: {self.error_info['message']}")
-            if self.error_info['exception']:
-                self.logger.error(f"异常详情: {self.error_info['exception']}")
-        
+        next_state = self.state_transitions[self.current_state].get(success)        
+      
         if next_state:
             self.logger.info(f"状态转换: {self.current_state.name} -> {next_state.name}")
             self.current_state = next_state

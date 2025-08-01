@@ -22,6 +22,19 @@ class GraspConfig:
             'fx': 607.5119018554688,
             'fy': 607.0875854492188
         }
+        # 机械臂参数
+        self.robot_ip = "192.168.1.18"
+        self.robot_port = 8080
+        self.arm_move_speed = 20
+        
+        # 平面抓取参数
+        self.adjustment = [0.1, 0.05]  # 安全预备位置和最终抓取位置的调整参数
+
+        # 处方rgb相机参数
+        self.rgb_camera_id = 0
+
+        # 其他配置参数
+        self.sam_model_path = "/home/gml-cwl/code/robot2/assets/weights/sam_b.pt"
         
     def update_camera_params(self, sensor: Optional[RealsenseSensor] = None) -> bool:
         """
@@ -58,10 +71,5 @@ class GraspConfig:
             print(f"更新相机参数失败: {str(e)}")
             return False
 
-        # 机械臂参数
-        self.robot_ip = "192.168.1.18"
-        self.robot_port = 8080
-        self.arm_move_speed = 20
-        
-        # 平面抓取参数
-        self.adjustment = [0.1, 0.05]  # 安全预备位置和最终抓取位置的调整参数
+
+

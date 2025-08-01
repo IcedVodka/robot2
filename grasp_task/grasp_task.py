@@ -14,6 +14,7 @@ from .config import GraspConfig
 from .image_handler import ImageHandler
 from .point_selector import PointSelector
 from .robot_control import RobotController
+from .prescription_handler import PrescriptionHandler
 
 class GraspTask:
     def __init__(self):
@@ -29,13 +30,15 @@ class GraspTask:
         # SAM模型
         self.sam_model = None
         self.mask_result = None #记得及时清空
+        self.prescription_frame = None
+        self.grasp_machine = None
         
         self._init_components()
         
     def _init_components(self):
         """初始化所有组件"""
         try:
-            self.sam_model = SamPredictor("/home/gml-cwl/code/robot2/assets/weights/sam_b.pt")
+            self.sam_model = SamPredictor(self.config.sam_model_path)
             self.image_handler.setup()
             self.robot_controller.setup()
             self.prescription_handler.setup()
@@ -52,16 +55,19 @@ class GraspTask:
         
         success, frame = self.prescription_handler.display_and_capture()
         if not success:
+            self.prescription_frame = None
             self.logger.error("处方图像捕获失败")
             return False
             
         self.logger.info("处方图像捕获成功")
+        self.prescription_frame = frame
         return True
         
     def run_prescription_recognition(self) -> bool:
         """运行处方识别阶段"""
         self.logger.info("=== 处方识别阶段 ===")
-        success = self.prescription_handler.recognize_prescription(frame)
+        success = self.prescription_handler.recognize_prescription(self.prescription_frame)
+        self.prescription_frame = None  # 清理处方图像
         if not success:
             self.logger.error("处方识别失败")
             return False
@@ -70,8 +76,9 @@ class GraspTask:
     def run_medicine_selection(self) -> bool:
         """选择下一个要抓取的药品"""
         medicine = self.prescription_handler.next_medicine()
+        self.garaph_machine = medicine
         if medicine is None:
-            self.logger.info("所有药品处理完成")
+            self.logger.info("所有药品处理完成")            
             return False
         
         self.logger.info(f"准备抓取药品: {medicine}")
@@ -94,7 +101,7 @@ class GraspTask:
             except KeyboardInterrupt:
                 return False
         
-        return self.point_selector.manual_select() if choice == '1' else self.point_selector.ai_select()
+        return self.point_selector.manual_select() if choice == '1' else self.point_selector.ai_select(self.grasp_machine)
 
     def run_segmentation(self) -> bool:
         """运行分割阶段"""
@@ -162,7 +169,7 @@ class GraspTask:
         self.logger.info("按ESC键退出程序，按Ctrl+C中断当前操作")
         
         # 启用调试模式
-        debug_mode = os.environ.get('DEBUG_MODE', 'false').lower() == 'true'
+        debug_mode = True
         if debug_mode:
             self.logger.setLevel(logging.DEBUG)
             self.logger.debug("调试模式已启用")
