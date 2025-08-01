@@ -28,6 +28,7 @@ def print_realsense_devices():
 
 
 class RealsenseSensor(VisionSensor):
+
     """
     RealSense相机传感器类
     
@@ -83,21 +84,28 @@ class RealsenseSensor(VisionSensor):
         self.config = None        
         self.is_depth = False
         self._pipeline_started = False
+        self.resolution = [640, 480]  # 默认分辨率
         self.logger.info(f"初始化RealSense传感器: {name}")
 
-    def set_up(self, camera_serial: str, is_depth: bool = False):
+    def set_up(self, camera_serial: str, is_depth: bool = False, resolution: list = None):
         """
         设置RealSense相机
         Args:
             camera_serial: 相机序列号
             is_depth: 是否启用深度流，默认False
+            resolution: 分辨率，包含两个值的list，默认[640, 480]，会保存到self.resolution
         Raises:
             RuntimeError: 当找不到设备或启动失败时抛出
         """
         self.is_depth = is_depth
         self.set_collect_info(["color", "depth"])
-        self.logger.info(f"开始设置相机，序列号: {camera_serial}, 深度模式: {is_depth}")
-        
+        if resolution is not None:
+            if not (isinstance(resolution, list) and len(resolution) == 2):
+                raise ValueError("resolution参数必须为包含两个值的list，如[640, 480]")
+            self.resolution = resolution
+        width, height = self.resolution
+        self.logger.info(f"开始设置相机，序列号: {camera_serial}, 深度模式: {is_depth}, 分辨率: {width}x{height}")
+
         try:
             # 初始化RealSense上下文并检查连接的设备
             self.context = rs.context()
@@ -105,33 +113,33 @@ class RealsenseSensor(VisionSensor):
             if not self.devices:
                 self.logger.error("未找到RealSense设备")
                 raise RuntimeError("No RealSense devices found")
-            
+
             self.logger.info(f"找到 {len(self.devices)} 个RealSense设备")
-            
+
             # 根据序列号查找设备
             device_idx = self._find_device_by_serial(self.devices, camera_serial)
             if device_idx is None:
                 self.logger.error(f"未找到序列号为 {camera_serial} 的相机")
                 raise RuntimeError(f"Could not find camera with serial number {camera_serial}")
-            
+
             self.logger.info(f"找到目标设备，索引: {device_idx}")
-            
+
             # 配置管道
             self.pipeline = rs.pipeline()
             self.config = rs.config()
             # 启用指定设备
             self.config.enable_device(camera_serial)
-            self.config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)
+            self.config.enable_stream(rs.stream.color, width, height, rs.format.bgr8, 30)
             if is_depth:
-                self.config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 30)
+                self.config.enable_stream(rs.stream.depth, width, height, rs.format.z16, 30)
                 self.logger.info("已启用深度流")
-            
+
             self.pipeline.start(self.config)
             self._pipeline_started = True
             self._start_collection()
             self.logger.info(f"相机启动成功: {self.name} (SN: {camera_serial})")
             time.sleep(1) # 等待摄像头初始化
-            
+
         except Exception as e:
             self.logger.error(f"相机初始化失败: {str(e)}")
             self.cleanup()
@@ -196,6 +204,46 @@ class RealsenseSensor(VisionSensor):
                     self.logger.warning(f"Pipeline停止失败: {str(e)}")
         except Exception as e:
             self.logger.error(f"清理过程中发生错误: {str(e)}")
+    
+    def get_intrinsics(self):
+        """
+        获取当前分辨率下的彩色图像和深度图像内参。
+        Returns:
+            dict: { 'color': {...}, 'depth': {...} }
+        """
+        if not self.pipeline or not self._pipeline_started:
+            self.logger.error("Pipeline未启动，无法获取内参")
+            return None
+        try:
+            # 获取一次帧，确保profile可用
+            frames = self.pipeline.wait_for_frames(2000)
+            color_intr = None
+            depth_intr = None
+            if frames:
+                color_frame = frames.get_color_frame()
+                depth_frame = frames.get_depth_frame() if self.is_depth else None
+                if color_frame:
+                    color_profile = color_frame.get_profile()
+                    color_intrinsics = color_profile.as_video_stream_profile().get_intrinsics()
+                    color_intr = {
+                        'ppx': color_intrinsics.ppx,
+                        'ppy': color_intrinsics.ppy,
+                        'fx': color_intrinsics.fx,
+                        'fy': color_intrinsics.fy
+                    }
+                if depth_frame:
+                    depth_profile = depth_frame.get_profile()
+                    depth_intrinsics = depth_profile.as_video_stream_profile().get_intrinsics()
+                    depth_intr = {
+                        'ppx': depth_intrinsics.ppx,
+                        'ppy': depth_intrinsics.ppy,
+                        'fx': depth_intrinsics.fx,
+                        'fy': depth_intrinsics.fy
+                    }
+            return {'color': color_intr, 'depth': depth_intr}
+        except Exception as e:
+            self.logger.error(f"获取内参失败: {str(e)}")
+            return None
     
     def __del__(self):
         """析构函数，确保资源被正确释放"""

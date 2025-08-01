@@ -1,15 +1,50 @@
-from Robot.robot.realman_controller import RealmanController
+from utils.llm_quest import *
+def test_prescription_recognition():
+    """测试处方单识别功能"""
+    test_image = r"D:\code\robot2\data\test_images\realsense_color_1753953354.jpg"
+    
+    try:
+        # 创建API实例
+        api = VisionAPI()
+        
+        # 创建图像输入
+        image_input = ImageInput(image_path=test_image)
+        
+        # 测试处方单识别
+        print("正在识别处方单中的药品...")
+        medicines = api.extract_prescription_medicines(image_input)
+        print(f"识别到的药品：{medicines}")
+        
+    except Exception as e:
+        print(f"测试过程中出现错误：{str(e)}")
+
+
+def test_medicine_box_detection():
+    """测试药品盒检测功能"""
+    test_image = r"D:\code\robot2\data\test_images\camera_12_20250730_165750.jpg"
+    
+    try:
+        # 创建API实例
+        api = VisionAPI()
+        
+        # 创建图像输入
+        image_input = ImageInput(image_path=test_image)
+        
+        # 测试药品盒检测
+        medicine_name = "百合固金片"
+        print(f"正在检测图片中的 '{medicine_name}'...")
+        x, y = api.detect_medicine_box(image_input, medicine_name)
+        print(f"检测结果：[{x}, {y}]")
+        
+    except Exception as e:
+        print(f"测试过程中出现错误：{str(e)}")
+
 
 if __name__ == "__main__":
-    # master = RealmanController("Master")
-    # master.set_up("192.168.1.19", 8080)  # 修改为你的 master 机械臂 IP
-    # master.set_arm_joints_block([0, 0, 0, 0, 0, 0])
-    # master.set_arm_init_joint()
-
-
-    slave = RealmanController("Slave")
-    slave.set_up("192.168.1.18", 8080)   # 修改为你的 slave 机械臂 IP   
-    slave.set_arm_init_joint()
-    slave.set_arm_fang_joint()
-
+    # 分别运行两个测试
+    print("=== 测试处方单识别 ===")
+    test_prescription_recognition()
+    
+    print("\n=== 测试药品盒检测 ===")
+    test_medicine_box_detection()
 

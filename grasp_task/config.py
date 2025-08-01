@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+
+from typing import Optional, Dict
+import numpy as np
+from Robot.sensor.depth_camera import RealsenseSensor
+
+class GraspConfig:
+    def __init__(self):
+        # 相机参数
+        self.camera_serial = "327122072195"
+        
+        # 相机标定参数 - 默认值，可以通过update_camera_params更新
+        self.rotation_matrix = [
+            [0.01063683, 0.99986326, -0.01266192],
+            [-0.99992363, 0.01055608, -0.00642741],
+            [-0.00629287, 0.01272932, 0.99989918]
+        ]
+        self.translation_vector = [-0.09011056, 0.02759339, 0.02540262]
+        self.color_intr = {
+            'ppx': 329.98211669921875,
+            'ppy': 246.95748901367188,
+            'fx': 607.5119018554688,
+            'fy': 607.0875854492188
+        }
+        
+    def update_camera_params(self, sensor: Optional[RealsenseSensor] = None) -> bool:
+        """
+        从传感器更新相机参数
+        Args:
+            sensor: 可选的传感器实例，如果未提供，将创建新的实例
+        Returns:
+            bool: 更新是否成功
+        """
+        try:
+            # 如果没有传入sensor，创建一个临时的
+            if sensor is None:
+                temp_sensor = RealsenseSensor("temp_camera")
+                temp_sensor.set_up(camera_serial=self.camera_serial, is_depth=True)
+            else:
+                temp_sensor = sensor
+            
+            # 获取相机内参
+            intr = temp_sensor.get_intrinsics()
+            if intr:
+                self.color_intr = {
+                    'ppx': intr.ppx,
+                    'ppy': intr.ppy,
+                    'fx': intr.fx,
+                    'fy': intr.fy
+                }
+            
+            # 如果使用的是临时sensor，需要清理
+            if sensor is None:
+                temp_sensor.cleanup()
+                
+            return True
+        except Exception as e:
+            print(f"更新相机参数失败: {str(e)}")
+            return False
+
+        # 机械臂参数
+        self.robot_ip = "192.168.1.18"
+        self.robot_port = 8080
+        self.arm_move_speed = 20
+        
+        # 平面抓取参数
+        self.adjustment = [0.1, 0.05]  # 安全预备位置和最终抓取位置的调整参数

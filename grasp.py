@@ -25,7 +25,7 @@ from typing import Tuple, Optional, Dict, Any, List
 from utils.logger import setup_logger, get_logger
 from Robot.sensor.suction_sensor import SuctionController
 from utils.vertical_grab.compute_pose import center_compute_pose
-from llm_test import detect_medicine_box
+from utils.llm_quest import detect_medicine_box
 
 # 添加项目路径
 sys.path.append(os.path.abspath('.'))
