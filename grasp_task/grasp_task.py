@@ -9,6 +9,7 @@ from utils.logger import setup_logger, get_logger
 from policy.segmentation import SamPredictor
 import cv2
 
+from grasp_task.llm_quest import VisionAPI
 from grasp_task.config import GraspConfig
 from grasp_task.image_handler import ImageHandler
 from grasp_task.point_selector import PointSelector
@@ -19,17 +20,21 @@ class GraspTask:
     def __init__(self):
         self.logger = get_logger("GraspTask")
         self.config = GraspConfig()
-        
+
         # 初始化各个模块
+        self.llm_api = VisionAPI()
         self.image_handler = ImageHandler(self.config, self.logger)
-        self.point_selector = PointSelector(self.image_handler, self.logger)
+        self.prescription_handler = PrescriptionHandler(self.config, self.llm_api, self.logger)
+        self.point_selector = PointSelector(self.image_handler,self.llm_api, self.logger)
         self.robot_controller = RobotController(self.config, self.logger)
-        self.prescription_handler = PrescriptionHandler(self.config, self.logger)
+        
         
         # SAM模型
         self.sam_model = None
-        self.mask_result = None #记得及时清空
+
+        #临时变量，记得及时清空 
         self.prescription_frame = None
+        self.mask_result = None       
         self.grasp_machine = None
         
         self._init_components()
@@ -114,9 +119,11 @@ class GraspTask:
             return False
         
         try:
+            # 将图像转换为RGB格式
             rgb_image = cv2.cvtColor(self.image_handler.last_color_image, cv2.COLOR_BGR2RGB)
+            # 使用SAM模型进行分割
             center, mask = self.sam_model.predict(rgb_image, points=self.point_selector.selected_point)
-            
+            # 如果分割成功，则显示分割结果
             if mask is not None:
                 self.mask_result = mask
                 self.logger.info(f"SAM分割成功，中心点: {center}")
@@ -134,6 +141,7 @@ class GraspTask:
                     return False
                 
                 self.logger.info("抓取位置计算完成")
+                self.logger.debug(f"点击mask窗口，按任意键继续")
                 cv2.waitKey(0)
                 cv2.destroyAllWindows()
                 return True

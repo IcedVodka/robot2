@@ -2,13 +2,13 @@ import cv2
 import logging
 import numpy as np
 from typing import List, Optional, Tuple
-from utils.llm_quest import VisionAPI, ImageInput
+from grasp_task.llm_quest import VisionAPI, ImageInput
 from Robot.sensor.rgb_camera import RgbCameraSensor
 from grasp_task.config import GraspConfig
 
 class PrescriptionHandler:
     """处方处理器，用于处方图像的采集和识别"""
-    def __init__(self, config: 'GraspConfig', logger: 'logging.Logger'):
+    def __init__(self, config: 'GraspConfig', llm_api: VisionAPI, logger: 'logging.Logger'):
         """初始化处方处理器
         
         Args:
@@ -18,9 +18,9 @@ class PrescriptionHandler:
         self.config = config
         self.logger = logger
         self.sensor = None
-        self.vision_api = VisionAPI()
         self.medicines = []  # 识别到的药品列表
         self.current_medicine_index = -1
+        self.llm_api = llm_api
     
     def setup(self) -> bool:
         """初始化相机"""
@@ -70,7 +70,7 @@ class PrescriptionHandler:
             image_input = ImageInput(image_np=image)
             
             # 调用API识别药品
-            self.medicines = self.vision_api.extract_prescription_medicines(image_input)
+            self.medicines = self.llm_api.extract_prescription_medicines(image_input)
             
             if not self.medicines:
                 self.logger.error("未识别到任何药品")

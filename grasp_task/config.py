@@ -25,8 +25,7 @@ class GraspConfig:
         # 机械臂参数
         self.robot_ip = "192.168.1.18"
         self.robot_port = 8080
-        self.arm_move_speed = 20
-        
+                
         # 平面抓取参数
         self.adjustment = [0.1, 0.03]  # 安全预备位置和最终抓取位置的调整参数
 

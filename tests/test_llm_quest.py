@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.llm_quest import VisionAPI, ImageInput
+from grasp_task.llm_quest import VisionAPI, ImageInput
 
 
 def test_prescription_recognition():
