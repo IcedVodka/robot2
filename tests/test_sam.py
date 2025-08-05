@@ -11,7 +11,7 @@ os.makedirs(output_dir, exist_ok=True)
 
 # 模型权重路径（请替换为你自己的模型文件路径）
 yolo_model_path = "/home/gml-cwl/code/robot2/assets/weights/yolov8s-world.pt"
-sam_model_path = "/home/gml-cwl/code/robot2/assets/weights/sam_b.pt"
+sam_model_path = "/home/gml-cwl/code/robot2/assets/weights/sam_l.pt"
 
 def test_yolo_sam_box():
     """测试YOLO检测 + SAM box模式分割"""

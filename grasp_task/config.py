@@ -33,5 +33,5 @@ class GraspConfig:
         self.rgb_camera_id = 6
 
         # 其他配置参数
-        self.sam_model_path = "/home/gml-cwl/code/robot2/assets/weights/sam_b.pt"        
+        self.sam_model_path = "/home/gml-cwl/code/robot2/assets/weights/sam_l.pt"        
    
