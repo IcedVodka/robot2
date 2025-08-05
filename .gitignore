@@ -3,6 +3,8 @@ __pycache__/
  
 logs/
 
+.vscode/
+
 
 assets/
 
@@ -12,3 +14,4 @@ configs/
 
 a.py
 a.txt
+shared_results.txt
