@@ -1,0 +1,65 @@
+# 机械臂抓取任务配置文件
+
+# 相机配置
+cameras:
+  # 左相机
+  left:
+    serial: "327122072195"
+    rotation_matrix:
+      - [0.01063683, 0.99986326, -0.01266192]
+      - [-0.99992363, 0.01055608, -0.00642741]
+      - [-0.00629287, 0.01272932, 0.99989918]
+    translation_vector: [-0.09011056, 0.02759339, 0.02540262]
+    color_intr:
+      ppx: 329.98211669921875
+      ppy: 246.95748901367188
+      fx: 607.5119018554688
+      fy: 607.0875854492188
+  
+  # 中央相机
+  center:
+    serial: "207522073950"
+    rotation_matrix:
+      - [1.0, 0.0, 0.0]
+      - [0.0, 1.0, 0.0]
+      - [0.0, 0.0, 1.0]
+    translation_vector: [0.0, 0.0, 0.0]
+    color_intr:
+      ppx: 320.0
+      ppy: 240.0
+      fx: 600.0
+      fy: 600.0
+  
+  # 右相机
+  right:
+    serial: "000000000000"  # 待配置
+    rotation_matrix:
+      - [1.0, 0.0, 0.0]
+      - [0.0, 1.0, 0.0]
+      - [0.0, 0.0, 1.0]
+    translation_vector: [0.0, 0.0, 0.0]
+    color_intr:
+      ppx: 320.0
+      ppy: 240.0
+      fx: 600.0
+      fy: 600.0
+
+# 机械臂配置
+robots:
+  # 左机械臂
+  left:
+    ip: "192.168.1.18"
+    port: 8080
+    adjustment: [0.1, 0.03]  # [安全预备位置偏移, 最终抓取位置偏移]
+  
+  # 右机械臂
+  right:
+    ip: "192.168.1.19"  # 待配置
+    port: 8080
+    adjustment: [0.1, 0.03]
+
+# RGB相机参数（处方识别用）
+rgb_camera_id: 6
+
+# 其他配置参数
+sam_model_path: "/home/gml-cwl/code/robot2/assets/weights/sam_l.pt"
