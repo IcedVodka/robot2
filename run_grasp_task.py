@@ -7,6 +7,9 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from grasp_task.grasp_task import main
+from grasp_task2.grasp_task import GraspTask
 
 if __name__ == "__main__":
-    main() 
+    
+    grasp_task = GraspTask()
+    grasp_task.run()

@@ -87,7 +87,7 @@ class RealsenseSensor(VisionSensor):
         self.resolution = [640, 480]  # 默认分辨率
         self.logger.info(f"初始化RealSense传感器: {name}")
 
-    def set_up(self, camera_serial: str, is_depth: bool = False, resolution: list = None):
+    def set_up(self, camera_serial: str, is_depth: bool = True, resolution: list = None):
         """
         设置RealSense相机
         Args:

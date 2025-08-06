@@ -14,4 +14,6 @@ configs/
 
 a.py
 a.txt
-shared_results.txt
+
+prescription.jpg
+*.jpg
