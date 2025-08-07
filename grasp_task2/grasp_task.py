@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-
 import sys
 import os
 import logging
-
+import cv2
 
 from Robot.sensor import depth_camera
 from utils.logger import setup_logger, get_logger
@@ -14,70 +13,11 @@ from Robot.sensor.rgb_camera import RgbCameraSensor
 from Robot.robot.realman_controller import RealmanController
 from grasp_task2.llm_quest import VisionAPI,ImageInput
 from grasp_task2.config import grasp_config
-from utils.vertical_grab.interface import vertical_catch
+from grasp_task2.vertical_catch import vertical_catch
 from Robot.sensor.suction_sensor import SuctionController
 from typing import Tuple, Optional
 import numpy as np
-import cv2
-
-def get_images(sensor, logger) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
-        """获取彩色和深度图像"""
-        try:
-            data = sensor.get_information()
-            if data and "color" in data and "depth" in data:
-                last_color_image = data["color"].copy()
-                last_depth_image = data["depth"].copy()
-                return last_color_image, last_depth_image
-            return None, None
-        except Exception as e:
-            logger.error(f"获取图像失败: {str(e)}")
-            return None, None
-
-def mark_detected_medicine_on_image(image: np.ndarray, x: int, y: int, depth: float, 
-                                  medicine_name: str, output_path: str) -> None:
-    """
-    在图片上标记识别到的药品位置并保存
-    
-    Args:
-        image: 原始图片 (BGR格式)
-        x: 识别到的x坐标
-        y: 识别到的y坐标  
-        depth: 该点的深度值
-        medicine_name: 药品名称
-        output_path: 输出图片路径
-    """
-    # 复制图片避免修改原图
-    marked_image = image.copy()
-    
-    # 绘制圆圈标记识别位置
-    cv2.circle(marked_image, (x, y), 10, (0, 255, 0), 2)  # 绿色圆圈
-    
-    # 绘制十字线
-    cv2.line(marked_image, (x-15, y), (x+15, y), (0, 255, 0), 2)  # 水平线
-    cv2.line(marked_image, (x, y-15), (x, y+15), (0, 255, 0), 2)  # 垂直线
-    
-    # 准备文本信息
-    text_info = f"Medicine: {medicine_name}"
-    coord_info = f"Position: ({x}, {y})"
-    depth_info = f"Depth: {depth:.3f}m"
-    
-    # 设置文本参数
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 0.6
-    thickness = 2
-    color = (0, 255, 0)  # 绿色
-    
-    # 计算文本位置
-    text_y_start = 30
-    line_height = 25
-    
-    # 绘制文本
-    cv2.putText(marked_image, text_info, (10, text_y_start), font, font_scale, color, thickness)
-    cv2.putText(marked_image, coord_info, (10, text_y_start + line_height), font, font_scale, color, thickness)
-    cv2.putText(marked_image, depth_info, (10, text_y_start + 2*line_height), font, font_scale, color, thickness)
-    
-    # 保存图片
-    cv2.imwrite(output_path, marked_image)
+from utils.others import get_images , mark_detected_medicine_on_image
 
 class GraspTask:
     def __init__(self):
@@ -93,7 +33,7 @@ class GraspTask:
         self.left_suction = None
         
         self.right_camera = RealsenseSensor("right_camera")
-        self.right_robot = RealmanController("right_robot")
+        self.right_robot = RealmanController("right_robot",self.config.robots["right"])
         self.right_suction = SuctionController()
         
     
@@ -114,10 +54,11 @@ class GraspTask:
             self.rgb_camera.set_up(self.config.rgb_camera_id)
 
             # self.left_camera.set_up(self.config.cameras.left.serial)
-            # self.left_robot.set_up(self.config.robots.left.ip, self.config.robots.left.port)
-
-            self.right_camera.set_up(self.config.cameras["right"].serial)         
-            self.right_robot.set_up(self.config.robots["right"].ip, self.config.robots["right"].port)
+            # self.left_robot.set_up()
+            # self.left_robot.set_arm_init_joint()
+            self.right_camera.set_up(self.config.cameras["right"].serial,self.config.cameras["right"].resolution)         
+            self.right_robot.set_up()
+            self.right_robot.set_arm_init_joint()
             time.sleep(2)
             self.logger.info("所有组件初始化完成")
             return True
@@ -159,10 +100,6 @@ class GraspTask:
         # 获取图像
         bgr_frame,depth_frame= get_images(camera, self.logger) 
 
-        # 保存图片
-        cv2.imwrite(f"{arm_side}_before_grasp.jpg", bgr_frame)
-        self.logger.info(f"药品抓取前图片保存成功: {arm_side}_before_grasp.jpg")
-
         # 1. 识别药品
         # 只有两个退出条件，1. 识别成功然后抓取，不以是否抓取成功为条件 2. 识别失败
         x, y = self.llm_api.detect_medicine_box(ImageInput(image_np=bgr_frame), medicine_name)
@@ -173,13 +110,20 @@ class GraspTask:
         self.logger.info(f"成功识别药品 '{medicine_name}'，坐标: ({x}, {y})")
         
         # 获取该点的深度信息
+        for i in range(3):
+            depth_value = depth_frame[y, x] if depth_frame is not None else 0.0
+            if depth_value > 0.0:
+                break
+            time.sleep(0.1)
+            bgr_frame,depth_frame= get_images(camera, self.logger)        
         depth_value = depth_frame[y, x] if depth_frame is not None else 0.0
-        
+
         # 保存标记了识别位置的图片
         marked_image_path = f"{arm_side}_detected_medicine.jpg"
         mark_detected_medicine_on_image(bgr_frame, x, y, depth_value, medicine_name, marked_image_path)
         self.logger.info(f"药品识别位置标记图片保存成功: {marked_image_path}")
 
+        mask = None
         # 2. Sam分割
         if use_sam:
             rgb_image = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)
@@ -193,17 +137,17 @@ class GraspTask:
 
         # 3. 计算抓取姿态
         pose = robot.get_state()["pose"]        
-        self.logger.info(f"当前{arm_side}机械臂姿态: {pose}")
+        self.logger.info(f"当前{arm_side}机械臂姿态: {pose}")        
         computed_object_pose, prepared_angle_pose, finally_pose = vertical_catch(
             mask=mask,
             depth_frame=depth_frame,
             color_intr=camera_config.color_intr,
             current_pose=pose,
             adjustment=robot_config.adjustment,
-            vertical_rx_ry_rz=None,
             rotation_matrix=camera_config.rotation_matrix,
             translation_vector=camera_config.translation_vector,
-            use_point_depth_or_mean=True
+            x=x,
+            y=y,
         )
 
         # 4. 抓取药品

@@ -4,6 +4,46 @@ from Robotic_Arm.rm_robot_interface import *
 import time
 import numpy as np
 from typing import List, Tuple, Dict, Any, Optional
+from dataclasses import dataclass, field
+
+@dataclass
+class RobotParams:
+    """机械臂参数类"""
+    ip: str
+    port: int
+    adjustment: List[float] = field(default_factory=lambda: [0.0, 0.0])  # [安全预备位置偏移, 最终抓取位置偏移]
+    arm_init_joints: List[float] = field(default_factory=lambda: [0, 0, 90, 0, 90, 0])  # 机械臂6个关节的初始角度
+    arm_move_speed: int = 20  # 机械臂运动速度，单位%，范围 1~100
+    arm_fang_joints: List[float] = field(default_factory=lambda: [-90, 0, 90, 0, 90, 0])  # 机械臂放物关节角度
+    grip_angles: List[int] = field(default_factory=lambda: [1000, 14000, 14000, 14000, 14000, 10000])  # 灵巧手抓取角度配置
+    release_angles: List[int] = field(default_factory=lambda: [4000, 17800, 17800, 17800, 17800, 10000])  # 灵巧手释放角度配置
+
+    def __post_init__(self):
+        """参数验证"""
+        if len(self.adjustment) != 2:
+            raise ValueError("adjustment must have exactly 2 elements")
+        if len(self.arm_init_joints) != 6:
+            raise ValueError("arm_init_joints must have exactly 6 elements")
+        if len(self.arm_fang_joints) != 6:
+            raise ValueError("arm_fang_joints must have exactly 6 elements")
+        if len(self.grip_angles) != 6:
+            raise ValueError("grip_angles must have exactly 6 elements")
+        if len(self.release_angles) != 6:
+            raise ValueError("release_angles must have exactly 6 elements")
+        if not (1 <= self.arm_move_speed <= 100):
+            raise ValueError("arm_move_speed must be between 1 and 100")
+
+def create_robot_param_from_yaml(config_path: str) -> RobotParams:
+    """从YAML文件创建RobotParams实例"""
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
+        # 支持嵌套配置结构
+        robot_config = config.get('robot', {})
+        return RobotParams(**robot_config)
+    except Exception as e:
+        raise RuntimeError(f"Failed to load config from {config_path}: {e}")
 
 # Realman机械臂控制器类
 class RealmanController:
@@ -20,7 +60,7 @@ class RealmanController:
         is_hand (bool): 末端是否为手
     """
     
-    def __init__(self, name: str, is_hand: bool = False):
+    def __init__(self, name: str, params: RobotParams, is_hand: bool = False):
         """
         初始化机械臂控制器
         
@@ -33,35 +73,25 @@ class RealmanController:
         self.logger = get_logger(name)
         self.robot: Optional[RoboticArm] = None
         self.handle: Optional[rm_robot_handle] = None
-        # 读取配置
-        try:
-            with open('configs/robot_config.yaml', 'r', encoding='utf-8') as f:
-                config = yaml.safe_load(f)
-            
-            # 正确访问嵌套的配置结构
-            robot_config = config.get('robot', {})
-            hand_config = robot_config.get('hand', {})
-            
-            self.hand_grip_angles = hand_config.get('grip_angles', [1000, 14000, 14000, 14000, 14000, 10000])
-            self.hand_release_angles = hand_config.get('release_angles', [4000, 17800, 17800, 17800, 17800, 10000])
-            self.arm_init_joints = robot_config.get('arm_init_joints', [0, 0, 90, 0, 90, 0])
-            self.arm_fang_joints = robot_config.get('arm_fang_joints',  [-90, 0, 90, 0, 90, 0])
-            self.arm_move_speed = robot_config.get('arm_move_speed', 20)
-            self.logger.info(f"读取robot_config.yaml成功，hand_grip_angles: {self.hand_grip_angles}, hand_release_angles: {self.hand_release_angles}, arm_init_joints: {self.arm_init_joints}, arm_fang_joints: {self.arm_fang_joints}, arm_move_speed: {self.arm_move_speed}")
-        except Exception as e:
-            self.logger.warning(f"读取robot_config.yaml失败，使用默认参数: {e}")
-            self.hand_grip_angles = [1000, 14000, 14000, 14000, 14000, 10000]
-            self.hand_release_angles = [4000, 17800, 17800, 17800, 17800, 10000]
-            self.arm_init_joints = [0, 0, 90, 0, 90, 0]
-            self.arm_fang_joints =  [-90, 0, 90, 0, 90, 0]
+        
+         # 从参数中获取配置
+        self.ip = params.ip
+        self.port = params.port
+        self.hand_grip_angles = params.grip_angles
+        self.hand_release_angles = params.release_angles
+        self.arm_init_joints = params.arm_init_joints
+        self.arm_fang_joints = params.arm_fang_joints
+        self.arm_move_speed = params.arm_move_speed
+        
+        self.logger.info(f"初始化控制器 {name}，参数: ip={params.ip}, port={params.port}, is_hand={is_hand}")
 
-    def set_up(self, rm_ip: str, port: int) -> None:
+    def set_up(self) -> None:
         """
         设置并连接机械臂
         """
         try:
             self.robot = RoboticArm(rm_thread_mode_e.RM_TRIPLE_MODE_E)
-            self.handle = self.robot.rm_create_robot_arm(rm_ip, port)
+            self.handle = self.robot.rm_create_robot_arm(self.ip, self.port)
             self.logger.info(f"机械臂ID：{self.handle.id}")
             ret, joint_angles = self.robot.rm_get_joint_degree()
             if ret == 0:
