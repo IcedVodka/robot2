@@ -1,108 +1,46 @@
 #!/usr/bin/env python3
-
-from typing import Optional, Dict, Literal
+from typing import Optional, Dict, Literal, List
 import numpy as np
 import yaml
 import os
 from dataclasses import dataclass, asdict
-from Robot.sensor.depth_camera import RealsenseSensor
+from Robot.robot.realman_controller import RobotParams
 
 @dataclass
 class CameraParams:
     """相机参数类"""
     serial: str
-    rotation_matrix: list
-    translation_vector: list
-    color_intr: Dict[str, float]
+    resolution: List[int]
+    rotation_matrix: List[List[float]]
+    translation_vector: List[float]
+    color_intr: Dict[str, float]  # {ppx, ppy, fx, fy}
     
-@dataclass 
-class RobotParams:
-    """机械臂参数类"""
-    ip: str
-    port: int
-    adjustment: list  # [安全预备位置偏移, 最终抓取位置偏移]
+
 
 class GraspConfig:
     def __init__(self):
-        # 相机配置 - 左、中、右三个相机
-        self.cameras = {
-            'left': CameraParams(
-                serial="327122072195",  # 左相机序列号
-                rotation_matrix=[
-                    [0.01063683, 0.99986326, -0.01266192],
-                    [-0.99992363, 0.01055608, -0.00642741],
-                    [-0.00629287, 0.01272932, 0.99989918]
-                ],
-                translation_vector=[-0.09011056, 0.02759339, 0.02540262],
-                color_intr={
-                    'ppx': 329.98211669921875,
-                    'ppy': 246.95748901367188,
-                    'fx': 607.5119018554688,
-                    'fy': 607.0875854492188
-                }
-            ),
-            'center': CameraParams(
-                serial="207522073950",  # 中央相机序列号
-                rotation_matrix=[
-                    [1.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                    [0.0, 0.0, 1.0]
-                ],
-                translation_vector=[0.0, 0.0, 0.0],
-                color_intr={
-                    'ppx': 320.0,
-                    'ppy': 240.0,
-                    'fx': 600.0,
-                    'fy': 600.0
-                }
-            ),
-            'right': CameraParams(
-                serial="000000000000",  # 右相机序列号（待配置）
-                rotation_matrix=[
-                    [1.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                    [0.0, 0.0, 1.0]
-                ],
-                translation_vector=[0.0, 0.0, 0.0],
-                color_intr={
-                    'ppx': 320.0,
-                    'ppy': 240.0,
-                    'fx': 600.0,
-                    'fy': 600.0
-                }
-            )
-        }
-        
-        # 机械臂配置 - 左、右两个机械臂
-        self.robots = {
-            'left': RobotParams(
-                ip="192.168.1.18",
-                port=8080,
-                adjustment=[0.1, 0.03]  # [安全预备位置偏移, 最终抓取位置偏移]
-            ),
-            'right': RobotParams(
-                ip="192.168.1.19",  # 右机械臂IP（待配置）
-                port=8080,
-                adjustment=[0.1, 0.03]
-            )
-        }
-        
-        # RGB相机参数（处方识别用）
-        self.rgb_camera_id = 6
-        
-        # 其他配置参数
-        self.sam_model_path = "/home/gml-cwl/code/robot2/assets/weights/sam_l.pt"
+        # 初始化空配置，必须从配置文件加载
+        self.cameras = {}
+        self.robots = {}
+        self.rgb_camera_id = None
+        self.sam_model_path = None
     
     def get_camera_params(self, position: Literal['left', 'center', 'right']) -> CameraParams:
         """获取指定位置的相机参数"""
+        if position not in self.cameras:
+            raise KeyError(f"相机位置 '{position}' 未在配置中找到")
         return self.cameras[position]
     
     def get_robot_params(self, position: Literal['left', 'right']) -> RobotParams:
         """获取指定位置的机械臂参数"""
+        if position not in self.robots:
+            raise KeyError(f"机械臂位置 '{position}' 未在配置中找到")
         return self.robots[position]
     
     def update_camera_params(self, position: Literal['left', 'center', 'right'], **kwargs):
         """更新相机参数"""
+        if position not in self.cameras:
+            raise KeyError(f"相机位置 '{position}' 未在配置中找到")
         camera = self.cameras[position]
         for key, value in kwargs.items():
             if hasattr(camera, key):
@@ -110,6 +48,8 @@ class GraspConfig:
     
     def update_robot_params(self, position: Literal['left', 'right'], **kwargs):
         """更新机械臂参数"""
+        if position not in self.robots:
+            raise KeyError(f"机械臂位置 '{position}' 未在配置中找到")
         robot = self.robots[position]
         for key, value in kwargs.items():
             if hasattr(robot, key):
@@ -124,26 +64,48 @@ class GraspConfig:
         with open(config_path, 'r', encoding='utf-8') as f:
             config_data = yaml.safe_load(f)
         
-        # 创建默认配置实例
+        # 创建配置实例
         config = cls()
         
-        # 更新相机配置
+        # 加载相机配置
         if 'cameras' in config_data:
             for position, camera_data in config_data['cameras'].items():
-                if position in config.cameras:
-                    config.update_camera_params(position, **camera_data)
+                config.cameras[position] = CameraParams(
+                    serial=camera_data['serial'],
+                    resolution=camera_data['resolution'],
+                    rotation_matrix=camera_data['rotation_matrix'],
+                    translation_vector=camera_data['translation_vector'],
+                    color_intr=camera_data['color_intr']  # 现在是 {ppx, ppy, fx, fy} 字典
+                )
+        else:
+            raise ValueError("配置文件中缺少 'cameras' 配置")
         
-        # 更新机械臂配置
+        # 加载机械臂配置
         if 'robots' in config_data:
             for position, robot_data in config_data['robots'].items():
-                if position in config.robots:
-                    config.update_robot_params(position, **robot_data)
+                config.robots[position] = RobotParams(
+                    ip=robot_data['ip'],
+                    port=robot_data['port'],
+                    adjustment=robot_data['adjustment'],
+                    arm_init_joints=robot_data['arm_init_joints'],
+                    arm_move_speed=robot_data['arm_move_speed'],
+                    arm_fang_joints=robot_data['arm_fang_joints'],
+                    grip_angles=robot_data['grip_angles'],
+                    release_angles=robot_data['release_angles']
+                )
+        else:
+            raise ValueError("配置文件中缺少 'robots' 配置")
         
-        # 更新其他配置
+        # 加载其他配置
         if 'rgb_camera_id' in config_data:
             config.rgb_camera_id = config_data['rgb_camera_id']
+        else:
+            raise ValueError("配置文件中缺少 'rgb_camera_id' 配置")
+            
         if 'sam_model_path' in config_data:
             config.sam_model_path = config_data['sam_model_path']
+        else:
+            raise ValueError("配置文件中缺少 'sam_model_path' 配置")
         
         return config
     
@@ -174,12 +136,19 @@ class GraspConfig:
 
 
 # 全局配置实例
-# 默认尝试加载配置文件，如果不存在则使用默认配置
+# 必须从配置文件加载，如果配置文件不存在则抛出异常
 _config_path = os.path.join(os.path.dirname(__file__), 'grasp_config.yaml')
 if os.path.exists(_config_path):
     grasp_config = GraspConfig.from_yaml(_config_path)
+    print("已加载配置:")
+    print(f"RGB相机ID: {grasp_config.rgb_camera_id}")
+    print(f"SAM模型路径: {grasp_config.sam_model_path}")
+    print("相机配置:")
+    for pos, camera in grasp_config.cameras.items():
+        print(f"  {pos}: 序列号={camera.serial}, 分辨率={camera.resolution}")
+    print("机械臂配置:")
+    for pos, robot in grasp_config.robots.items():
+        print(f"  {pos}: IP={robot.ip}:{robot.port}, 速度={robot.arm_move_speed}%")
 else:
-    grasp_config = GraspConfig()
-    # 创建默认配置文件
-    grasp_config.to_yaml(_config_path)
+    raise FileNotFoundError(f"配置文件不存在: {_config_path}，请确保配置文件存在并包含所有必需的配置项")
    

@@ -1,4 +1,7 @@
- 
+import numpy as np
+import cv2
+from typing import Tuple, Optional
+
 
 def print_grasp_poses(above_pose, correct_pose, finally_pose , logger = None):
         """打印抓取位姿信息"""
@@ -70,3 +73,63 @@ def print_grasp_poses(above_pose, correct_pose, finally_pose , logger = None):
                 print(f"  RY: {finally_pose[4]:.3f} rad")
                 print(f"  RZ: {finally_pose[5]:.3f} rad")
                 print()
+
+
+def get_images(sensor, logger) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+        """获取彩色和深度图像"""
+        try:
+            data = sensor.get_information()
+            if data and "color" in data and "depth" in data:
+                last_color_image = data["color"].copy()
+                last_depth_image = data["depth"].copy()
+                return last_color_image, last_depth_image
+            return None, None
+        except Exception as e:
+            logger.error(f"获取图像失败: {str(e)}")
+            return None, None
+
+def mark_detected_medicine_on_image(image: np.ndarray, x: int, y: int, depth: float, 
+                                  medicine_name: str, output_path: str) -> None:
+    """
+    在图片上标记识别到的药品位置并保存
+    
+    Args:
+        image: 原始图片 (BGR格式)
+        x: 识别到的x坐标
+        y: 识别到的y坐标  
+        depth: 该点的深度值
+        medicine_name: 药品名称
+        output_path: 输出图片路径
+    """
+    # 复制图片避免修改原图
+    marked_image = image.copy()
+    
+    # 绘制圆圈标记识别位置
+    cv2.circle(marked_image, (x, y), 10, (0, 255, 0), 2)  # 绿色圆圈
+    
+    # 绘制十字线
+    cv2.line(marked_image, (x-15, y), (x+15, y), (0, 255, 0), 2)  # 水平线
+    cv2.line(marked_image, (x, y-15), (x, y+15), (0, 255, 0), 2)  # 垂直线
+    
+    # 准备文本信息
+    text_info = f"Medicine: {medicine_name}"
+    coord_info = f"Position: ({x}, {y})"
+    depth_info = f"Depth: {depth:.3f}mm"
+    
+    # 设置文本参数
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.6
+    thickness = 2
+    color = (0, 255, 0)  # 绿色
+    
+    # 计算文本位置
+    text_y_start = 30
+    line_height = 25
+    
+    # 绘制文本
+    cv2.putText(marked_image, text_info, (10, text_y_start), font, font_scale, color, thickness)
+    cv2.putText(marked_image, coord_info, (10, text_y_start + line_height), font, font_scale, color, thickness)
+    cv2.putText(marked_image, depth_info, (10, text_y_start + 2*line_height), font, font_scale, color, thickness)
+    
+    # 保存图片
+    cv2.imwrite(output_path, marked_image)
