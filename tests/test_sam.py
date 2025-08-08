@@ -5,13 +5,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from policy.segmentation import YoloDetector, SamPredictor
 
 # 路径配置
-image_path = "/home/gml-cwl/code/robot2/data/test_images/realsense_color_327122072195_20250728_172254.jpg"
-output_dir = "/home/gml-cwl/code/robot2/data/outputs"
+image_path = "data/test_images/realsense_color_327122072195_20250728_172254.jpg"
+output_dir = "data/outputs"
 os.makedirs(output_dir, exist_ok=True)
 
 # 模型权重路径（请替换为你自己的模型文件路径）
 yolo_model_path = "/home/gml-cwl/code/robot2/assets/weights/yolov8s-world.pt"
-sam_model_path = "/home/gml-cwl/code/robot2/assets/weights/sam_l.pt"
+sam_model_path = "assets\sam_l.pt"
 
 def test_yolo_sam_box():
     """测试YOLO检测 + SAM box模式分割"""

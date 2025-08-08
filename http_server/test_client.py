@@ -57,7 +57,7 @@ def test_start_grasp():
 def main():
     """运行所有测试"""
      # 测试处方识别
-    # test_prescription_recognition()
+    test_prescription_recognition()
     
     # 测试获取处方列表
     test_get_prescription_list()

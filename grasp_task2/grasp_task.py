@@ -142,7 +142,8 @@ class GraspTask:
         #保存图片
         cv2.imwrite("prescription.jpg", bgr_frame)
         self.logger.info("处方图片保存成功")
-        return self.llm_api.extract_prescription_medicines(ImageInput(image_np=bgr_frame))
+        self.medicine_list  = self.llm_api.extract_prescription_medicines(ImageInput(image_np=bgr_frame))
+        return self.medicine_list
 
     # 单个药品抓取
     def single_medicine_grasp(self, medicine_name, arm_side = "right" , use_sam = True):
