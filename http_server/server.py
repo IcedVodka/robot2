@@ -43,6 +43,23 @@ def start_prescription_recognition():
     threading.Thread(target=run_task).start()
     return jsonify({"task_id": task_id})
 
+@app.route('/place_medicine_basket', methods=['POST'])
+def place_medicine_basket():
+    """放置药品篮子任务，返回 task_id，完成后清空药品列表文件"""
+    task_id = str(uuid.uuid4())
+    tasks[task_id] = TASK_INCOMPLETE
+
+    def run_task():
+        try:
+            grasp_handler.place_medicine_basket()
+        finally:
+            # 任务完成后清空药品列表
+            write_medicines([])
+            tasks[task_id] = TASK_COMPLETE
+
+    threading.Thread(target=run_task).start()
+    return jsonify({"task_id": task_id})
+
 @app.route('/prescription_list', methods=['GET'])
 def get_prescription_list():
     medicines = read_medicines()

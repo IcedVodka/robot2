@@ -54,6 +54,25 @@ def test_start_grasp():
     else:
         print(f"开始抓取请求失败: {response.status_code}")
 
+def test_place_medicine_basket():
+    """测试放置药品框接口"""
+    print("\n=== 测试放置药品框 ===")
+    response = requests.post(f"{BASE_URL}/place_medicine_basket")
+    if response.status_code == 200:
+        task_id = response.json()["task_id"]
+        print(f"开始放置药品框任务，任务ID: {task_id}")
+
+        # 轮询任务状态
+        while True:
+            status_response = requests.get(f"{BASE_URL}/task_status/{task_id}")
+            status = status_response.json()["status"]
+            print(f"任务状态: {status}")
+            if status == "complete":
+                break
+            time.sleep(2)
+    else:
+        print(f"放置药品框请求失败: {response.status_code}")
+
 def main():
     """运行所有测试"""
      # 测试处方识别
@@ -66,6 +85,12 @@ def main():
     test_start_grasp()
 
     # 测试获取抓取结果
+    test_get_prescription_list()
+
+    # 测试放置药品框
+    test_place_medicine_basket()
+
+    # 放置完成后处方应为空
     test_get_prescription_list()
 
 if __name__ == "__main__":

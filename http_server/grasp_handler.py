@@ -1,11 +1,19 @@
 import time
-from grasp_task import GraspTask
+import os
+import sys
+
+# 确保项目根目录在 sys.path 中（支持从 http_server 目录直接运行）
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+# from grasp_task2.grasp_task import GraspTask
 
 
 class GraspHandler:
     def __init__(self):
         """初始化抓取处理器"""
-        self.grasp_task = GraspTask()
+        # self.grasp_task = GraspTask()
 
     
 
@@ -37,3 +45,12 @@ class GraspHandler:
         # return if medicines and len(medicines) > 0 else None
 
         return medicines[1:] if medicines and len(medicines) > 0 else None
+    
+    def place_medicine_basket(self):
+        """放置药品篮子
+        """
+        # TODO: 实现具体的抓取逻辑
+        time.sleep(10)
+        # self.grasp_task.place_medicine_basket()        
+
+        return True
