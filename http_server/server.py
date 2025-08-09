@@ -93,4 +93,5 @@ if __name__ == '__main__':
     # 确保文件存在
     if not os.path.exists(MEDICINES_FILE):
         open(MEDICINES_FILE, 'a').close()
+    write_medicines([])
     app.run(host='0.0.0.0', port=5000)

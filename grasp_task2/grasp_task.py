@@ -28,13 +28,13 @@ class GraspTask:
         self.llm_api = VisionAPI()
         # self.rgb_camera = RgbCameraSensor("rgb_camera")
 
-        self.left_camera = None     
-        self.left_robot = None
+        self.left_camera = RealsenseSensor("left_camera")     
+        self.left_robot = RealmanController("left_robot",self.config.robots["left"])
         self.left_suction = None
         
         self.right_camera = RealsenseSensor("right_camera")
         self.right_robot = RealmanController("right_robot",self.config.robots["right"])
-        self.right_suction = SuctionController()
+        self.right_suction = None
         
     
         # SAM模型
@@ -53,9 +53,9 @@ class GraspTask:
             self.sam_model = SamPredictor(self.config.sam_model_path)
             # self.rgb_camera.set_up(self.config.rgb_camera_id)
 
-            # self.left_camera.set_up(self.config.cameras.left.serial)
-            # self.left_robot.set_up()
-            # self.left_robot.set_arm_init_joint()
+            self.left_camera.set_up(self.config.cameras["left"].serial,self.config.cameras["left"].resolution)
+            self.left_robot.set_up()
+            self.left_robot.set_arm_init_joint()
             self.right_camera.set_up(self.config.cameras["right"].serial,self.config.cameras["right"].resolution)         
             self.right_robot.set_up()
             self.right_robot.set_arm_init_joint()
@@ -79,7 +79,7 @@ class GraspTask:
     # 处方识别        
     def prescription_recognition(self):
         self.logger.info("开始处方识别")
-        bgr_frame = self.right_camera.get_information()['color']
+        bgr_frame = self.left_camera.get_information()['color']
         #保存图片
         cv2.imwrite("prescription.jpg", bgr_frame)
         self.logger.info("处方图片保存成功")
@@ -194,7 +194,13 @@ class GraspTask:
     def place_medicine_basket(self):
         self.logger.info("开始放置药品篮子")
         self.medicine_list = []  
-        pass   
+        self.left_robot.set_arm_fang_joint()
+        time.sleep(2)
+        self.left_robot.set_arm_init_joint()
+        time.sleep(2)
+        self.right_robot.set_arm_fang_joint()
+        time.sleep(2)
+        self.right_robot.set_arm_init_joint()
 
         
     def run(self):
