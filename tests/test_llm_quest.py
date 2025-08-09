@@ -2,12 +2,12 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from grasp_task.llm_quest import VisionAPI, ImageInput
+from grasp_task2.llm_quest import VisionAPI, ImageInput
 
 
 def test_prescription_recognition():
     """测试处方单识别功能"""
-    test_image = "../data/test_images/camera_12_20250730_165750.jpg"
+    test_image = "data/test_images/realsense_color_1753953359.jpg"
     
     try:
         # 创建API实例
@@ -27,7 +27,7 @@ def test_prescription_recognition():
 
 def test_medicine_box_detection():
     """测试药品盒检测功能"""
-    test_image = "/tmp/tmpb980wlln.jpg"
+    test_image = "data/test_images/camera_12_20250730_165750.jpg"
     
     try:
         # 创建API实例

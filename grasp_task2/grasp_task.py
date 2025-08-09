@@ -26,7 +26,7 @@ class GraspTask:
 
         # 初始化各个模块
         self.llm_api = VisionAPI()
-        self.rgb_camera = RgbCameraSensor("rgb_camera")
+        # self.rgb_camera = RgbCameraSensor("rgb_camera")
 
         self.left_camera = None     
         self.left_robot = None
@@ -51,7 +51,7 @@ class GraspTask:
         """初始化所有组件"""
         try:
             self.sam_model = SamPredictor(self.config.sam_model_path)
-            self.rgb_camera.set_up(self.config.rgb_camera_id)
+            # self.rgb_camera.set_up(self.config.rgb_camera_id)
 
             # self.left_camera.set_up(self.config.cameras.left.serial)
             # self.left_robot.set_up()
@@ -68,8 +68,8 @@ class GraspTask:
     def cleanup(self):
         """清理资源"""
         self.logger.info("正在清理资源...")
-        if self.rgb_camera:
-            self.rgb_camera.cleanup()
+        # if self.rgb_camera:
+        #     self.rgb_camera.cleanup()
         if self.right_camera:
             self.right_camera.cleanup()
         if self.right_suction:
@@ -79,7 +79,7 @@ class GraspTask:
     # 处方识别        
     def prescription_recognition(self):
         self.logger.info("开始处方识别")
-        bgr_frame = self.rgb_camera.get()['color']
+        bgr_frame = self.right_camera.get_information()['color']
         #保存图片
         cv2.imwrite("prescription.jpg", bgr_frame)
         self.logger.info("处方图片保存成功")
