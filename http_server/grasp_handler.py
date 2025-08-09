@@ -1,18 +1,27 @@
 import time
+from grasp_task import GraspTask
+
 
 class GraspHandler:
     def __init__(self):
         """初始化抓取处理器"""
-        self.camera = Camera()
+        self.grasp_task = GraspTask()
+
+    
 
     def process_prescription_recognition(self):
         """处方识别
         Returns:
             list: 药品列表，例如 ["药品A", "药品B"]            
         """
+        # 调用grasp_task的处方识别方法
+        # medicine_list =  self.grasp_task.prescription_recognition()
+
         time.sleep(10)
         # TODO: 实现具体的处方识别逻辑
+        # return medicine_list
         return ["药品A", "药品A", "药品B", "药品C"]
+
 
     def process_grasp(self, medicines):
         """执行抓取
@@ -23,4 +32,8 @@ class GraspHandler:
         """
         # TODO: 实现具体的抓取逻辑
         time.sleep(10)
+        # self.grasp_task.shelf_grasp()
+        # medicines = self.grasp_task.medicine_list
+        # return if medicines and len(medicines) > 0 else None
+
         return medicines[1:] if medicines and len(medicines) > 0 else None
