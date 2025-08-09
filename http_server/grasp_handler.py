@@ -25,7 +25,7 @@ class GraspHandler:
         # 调用grasp_task的处方识别方法
         # medicine_list =  self.grasp_task.prescription_recognition()
 
-        time.sleep(10)
+        time.sleep(2)
         # TODO: 实现具体的处方识别逻辑
         # return medicine_list
         return ["药品A", "药品A", "药品B", "药品C"]
@@ -39,7 +39,7 @@ class GraspHandler:
             list: 更新后的药品列表
         """
         # TODO: 实现具体的抓取逻辑
-        time.sleep(10)
+        time.sleep(2)
         # self.grasp_task.shelf_grasp()
         # medicines = self.grasp_task.medicine_list
         # return if medicines and len(medicines) > 0 else None
@@ -50,7 +50,7 @@ class GraspHandler:
         """放置药品篮子
         """
         # TODO: 实现具体的抓取逻辑
-        time.sleep(10)
+        time.sleep(2)
         # self.grasp_task.place_medicine_basket()        
 
         return True

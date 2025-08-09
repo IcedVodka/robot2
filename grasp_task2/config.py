@@ -137,7 +137,7 @@ class GraspConfig:
 
 # 全局配置实例
 # 必须从配置文件加载，如果配置文件不存在则抛出异常
-_config_path = os.path.join(os.path.dirname(__file__), 'grasp_config.yaml')
+_config_path = os.path.join(os.path.dirname(__file__), 'grasp_config72.yaml')
 if os.path.exists(_config_path):
     grasp_config = GraspConfig.from_yaml(_config_path)
     print("已加载配置:")

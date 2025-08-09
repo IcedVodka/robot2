@@ -18,20 +18,20 @@ class RobotParams:
     grip_angles: List[int] = field(default_factory=lambda: [1000, 14000, 14000, 14000, 14000, 10000])  # 灵巧手抓取角度配置
     release_angles: List[int] = field(default_factory=lambda: [4000, 17800, 17800, 17800, 17800, 10000])  # 灵巧手释放角度配置
 
-    def __post_init__(self):
-        """参数验证"""
-        if len(self.adjustment) != 2:
-            raise ValueError("adjustment must have exactly 2 elements")
-        if len(self.arm_init_joints) != 6:
-            raise ValueError("arm_init_joints must have exactly 6 elements")
-        if len(self.arm_fang_joints) != 6:
-            raise ValueError("arm_fang_joints must have exactly 6 elements")
-        if len(self.grip_angles) != 6:
-            raise ValueError("grip_angles must have exactly 6 elements")
-        if len(self.release_angles) != 6:
-            raise ValueError("release_angles must have exactly 6 elements")
-        if not (1 <= self.arm_move_speed <= 100):
-            raise ValueError("arm_move_speed must be between 1 and 100")
+    # def __post_init__(self):
+    #     """参数验证"""
+    #     if len(self.adjustment) != 2:
+    #         raise ValueError("adjustment must have exactly 2 elements")
+    #     if len(self.arm_init_joints) != 6:
+    #         raise ValueError("arm_init_joints must have exactly 6 elements")
+    #     if len(self.arm_fang_joints) != 6:
+    #         raise ValueError("arm_fang_joints must have exactly 6 elements")
+    #     if len(self.grip_angles) != 6:
+    #         raise ValueError("grip_angles must have exactly 6 elements")
+    #     if len(self.release_angles) != 6:
+    #         raise ValueError("release_angles must have exactly 6 elements")
+    #     if not (1 <= self.arm_move_speed <= 100):
+    #         raise ValueError("arm_move_speed must be between 1 and 100")
 
 def create_robot_param_from_yaml(config_path: str) -> RobotParams:
     """从YAML文件创建RobotParams实例"""
@@ -153,9 +153,9 @@ class RealmanController:
         设置机械臂关节角度，直接透传给机械臂，不进行阻塞实时返回
         """
         try:
-            if len(joint) != 6:
-                self.logger.error(f"Invalid joint length: {len(joint)}, expected 6")
-                raise ValueError(f"Invalid joint length: {len(joint)}, expected 6")
+            # if len(joint) != 6:
+            #     self.logger.error(f"Invalid joint length: {len(joint)}, expected 6")
+            #     raise ValueError(f"Invalid joint length: {len(joint)}, expected 6")
             success = self.robot.rm_movej_canfd(joint, False, 0, 0, 0)
             if success != 0:
                 self.logger.error("Failed to set joint angles")
@@ -169,9 +169,9 @@ class RealmanController:
         设置机械臂关节角度，阻塞模式，等待机械臂到达目标位置或规划失败后才返回
         """
         try:
-            if len(joint) != 6:
-                self.logger.error(f"Invalid joint length: {len(joint)}, expected 6")
-                raise ValueError(f"Invalid joint length: {len(joint)}, expected 6")
+            # if len(joint) != 6:
+            #     self.logger.error(f"Invalid joint length: {len(joint)}, expected 6")
+            #     raise ValueError(f"Invalid joint length: {len(joint)}, expected 6")
             success = self.robot.rm_movej(joint, self.arm_move_speed, 0, 0, 1)
             if success != 0:
                 self.logger.error("Failed to set joint angles")
