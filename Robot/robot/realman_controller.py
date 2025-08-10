@@ -117,7 +117,8 @@ class RealmanController:
                 port=1,  # 末端接口板RS485接口
                 baudrate=9600,
                 timeout=10
-            )  
+            )
+            time.sleep(2) 
         except Exception as e:
             self.logger.error(f"Failed to initialize robot arm: {str(e)}")
             raise ConnectionError(f"Failed to initialize robot arm: {str(e)}")

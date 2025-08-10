@@ -120,4 +120,4 @@ def test_realsense_sensor(camera_serial):
 if __name__ == "__main__":
     setup_logger()
     # print_realsense_devices()
-    test_realsense_sensor("327122072195") 
+    test_realsense_sensor("327122078945") 

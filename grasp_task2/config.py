@@ -37,7 +37,7 @@ class GraspConfig:
             raise KeyError(f"机械臂位置 '{position}' 未在配置中找到")
         return self.robots[position]
     
-    def update_camera_params(self, position: Literal['left', 'center', 'right'], **kwargs):
+    def update_camera_params(self, position: Literal['left', 'right'], **kwargs):
         """更新相机参数"""
         if position not in self.cameras:
             raise KeyError(f"相机位置 '{position}' 未在配置中找到")

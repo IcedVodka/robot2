@@ -99,33 +99,33 @@ def download_sam_models():
     print(f"正在下载 {model_name} (推荐模型)...")
     print(f"下载URL: {model_info['url']}")
     
-    # 方法1: 使用requests直接下载
-    print("\n方法1: 使用requests直接下载...")
-    if download_with_retry(model_info['url'], model_name):
-        print("✅ 直接下载成功!")
+    # # 方法1: 使用requests直接下载
+    # print("\n方法1: 使用requests直接下载...")
+    # if download_with_retry(model_info['url'], model_name):
+    #     print("✅ 直接下载成功!")
         
-        # 验证文件完整性
-        print("验证文件完整性...")
-        try:
-            model = SAM(model_name)
-            print(f"✅ 模型加载成功! 模型保存在: {model.ckpt_path}")
-            return True
-        except Exception as e:
-            print(f"❌ 模型加载失败: {e}")
-            print("文件可能损坏，尝试重新下载...")
-            if os.path.exists(model_name):
-                os.remove(model_name)
+    #     # 验证文件完整性
+    #     print("验证文件完整性...")
+    #     try:
+    #         model = SAM(model_name)
+    #         print(f"✅ 模型加载成功! 模型保存在: {model.ckpt_path}")
+    #         return True
+    #     except Exception as e:
+    #         print(f"❌ 模型加载失败: {e}")
+    #         print("文件可能损坏，尝试重新下载...")
+    #         if os.path.exists(model_name):
+    #             os.remove(model_name)
     
-    # 方法2: 使用ultralytics自动下载
-    print("\n方法2: 使用ultralytics自动下载...")
-    try:
-        print("正在使用ultralytics下载...")
-        model = SAM(model_name)
-        print("✅ ultralytics下载成功!")
-        print(f"模型保存在: {model.ckpt_path}")
-        return True
-    except Exception as e:
-        print(f"❌ ultralytics下载失败: {e}")
+    # # 方法2: 使用ultralytics自动下载
+    # print("\n方法2: 使用ultralytics自动下载...")
+    # try:
+    #     print("正在使用ultralytics下载...")
+    #     model = SAM(model_name)
+    #     print("✅ ultralytics下载成功!")
+    #     print(f"模型保存在: {model.ckpt_path}")
+    #     return True
+    # except Exception as e:
+    #     print(f"❌ ultralytics下载失败: {e}")
     
     # 方法3: 尝试下载较小的模型
     print("\n方法3: 尝试下载较小的sam_b.pt模型...")

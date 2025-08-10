@@ -32,7 +32,7 @@ class DepthCameraSamTest:
         self.running = True
         
         # SAM模型路径
-        self.sam_model_path = "/home/gml-cwl/code/robot2/assets/weights/sam_l.pt"
+        self.sam_model_path = "/home/s402/yd/robot2/sam_b.pt"
         
     def mouse_callback(self, event, x, y, flags, param):
         """鼠标回调函数，记录点击的点并进行分割"""

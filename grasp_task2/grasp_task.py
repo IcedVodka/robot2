@@ -18,6 +18,7 @@ from Robot.sensor.suction_sensor import SuctionController
 from typing import Tuple, Optional
 import numpy as np
 from utils.others import get_images , mark_detected_medicine_on_image
+from utils.others import print_grasp_poses
 
 class GraspTask:
     def __init__(self):
@@ -152,7 +153,7 @@ class GraspTask:
             x=x,
             y=y,
         )
-
+        print_grasp_poses(computed_object_pose, prepared_angle_pose, finally_pose)
         # 4. 抓取药品
         robot.suck()
         robot.set_pose_block(prepared_angle_pose, linear=False)

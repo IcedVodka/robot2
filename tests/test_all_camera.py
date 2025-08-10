@@ -263,8 +263,38 @@ def test_realsense_cameras():
             
             try:
                 # 启动管道
-                profile = pipeline.start(config)                
-                                
+                profile = pipeline.start(config)
+                
+                # 获取彩色相机内参
+                color_stream = profile.get_stream(rs.stream.color)
+                color_intrinsics = color_stream.as_video_stream_profile().get_intrinsics()
+                
+                # 获取深度相机内参
+                depth_stream = profile.get_stream(rs.stream.depth)
+                depth_intrinsics = depth_stream.as_video_stream_profile().get_intrinsics()
+                
+                # 打印彩色相机内参
+                print(f"\n彩色相机内参:")
+                print(f"  ppx (主点x坐标): {color_intrinsics.ppx}")
+                print(f"  ppy (主点y坐标): {color_intrinsics.ppy}")
+                print(f"  fx (x方向焦距): {color_intrinsics.fx}")
+                print(f"  fy (y方向焦距): {color_intrinsics.fy}")
+                print(f"  宽度: {color_intrinsics.width}")
+                print(f"  高度: {color_intrinsics.height}")
+                print(f"  畸变模型: {color_intrinsics.model}")
+                print(f"  畸变参数: {color_intrinsics.coeffs}")
+                
+                # 打印深度相机内参
+                print(f"\n深度相机内参:")
+                print(f"  ppx (主点x坐标): {depth_intrinsics.ppx}")
+                print(f"  ppy (主点y坐标): {depth_intrinsics.ppy}")
+                print(f"  fx (x方向焦距): {depth_intrinsics.fx}")
+                print(f"  fy (y方向焦距): {depth_intrinsics.fy}")
+                print(f"  宽度: {depth_intrinsics.width}")
+                print(f"  高度: {depth_intrinsics.height}")
+                print(f"  畸变模型: {depth_intrinsics.model}")
+                print(f"  畸变参数: {depth_intrinsics.coeffs}")
+                
                 # 创建窗口
                 color_window = f"Color - {name}"
                 depth_window = f"Depth - {name}"
