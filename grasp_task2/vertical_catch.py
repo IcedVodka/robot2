@@ -55,16 +55,8 @@ def convert(x, y, z, x1, y1, z1, rx, ry, rz, rotation_matrix, translation_vector
         :3
     ]  # 从齐次坐标中提取物体的x, y, z坐标
 
-    # 计算物体的旋转
-    obj_orientation_matrix = T_base_to_end_effector[:3, :3].dot(rotation_matrix)
-    obj_orientation_euler = R.from_matrix(obj_orientation_matrix).as_euler(
-        "xyz", degrees=False
-    )
-
-    # 组合结果
-    obj_base_pose = np.hstack((obj_base_coordinates, obj_orientation_euler))
-
-    obj_base_pose[3:] = rx, ry, rz
+    # 组合结果，旋转保持原始的rx, ry, rz
+    obj_base_pose = np.hstack((obj_base_coordinates, [rx, ry, rz]))
 
     return obj_base_pose
 
