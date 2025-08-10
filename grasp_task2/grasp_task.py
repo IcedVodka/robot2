@@ -188,16 +188,16 @@ class GraspTask:
     
     # 抓取一个货架多层药品
     def shelf_grasp(self):
-        pass
-    
-    # 放置药品篮子
-    def place_medicine_basket(self):
-        self.logger.info("开始放置药品篮子")
-        self.medicine_list = []  
         self.left_robot.set_arm_fang_joint()
         time.sleep(2)
         self.left_robot.set_arm_init_joint()
         time.sleep(2)
+    
+    # 放置药品篮子
+    def place_medicine_basket(self):
+        self.logger.info("开始放置药品篮子")
+        self.medicine_list = [] 
+
         self.right_robot.set_arm_fang_joint()
         time.sleep(2)
         self.right_robot.set_arm_init_joint()
