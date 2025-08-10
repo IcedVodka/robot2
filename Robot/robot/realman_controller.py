@@ -73,6 +73,7 @@ class RealmanController:
         self.logger = get_logger(name)
         self.robot: Optional[RoboticArm] = None
         self.handle: Optional[rm_robot_handle] = None
+        self.modbus_handle = None
         
          # 从参数中获取配置
         self.ip = params.ip
@@ -82,6 +83,20 @@ class RealmanController:
         self.arm_init_joints = params.arm_init_joints
         self.arm_fang_joints = params.arm_fang_joints
         self.arm_move_speed = params.arm_move_speed
+
+        self.write_params = rm_peripheral_read_write_params_t(
+            port=1,           # 末端接口板RS485接口
+            address=0,  # 线圈地址0
+            device=1, # 设备地址1
+            num=1             # 写入1个线圈
+        )
+        
+        self.read_params = rm_peripheral_read_write_params_t(
+            port=1,           # 末端接口板RS485接口
+            address=0,  # 线圈地址0
+            device=1, # 设备地址1
+            num=1             # 读取1个线圈
+        )
         
         self.logger.info(f"初始化控制器 {name}，参数: ip={params.ip}, port={params.port}, is_hand={is_hand}")
 
@@ -98,6 +113,11 @@ class RealmanController:
                 self.logger.info(f"当前机械臂各关节角度：{joint_angles}")
             else:
                 self.logger.error(f"读取关节角度失败，错误码：{ret}")
+            self.modbus_handle = self.robot.rm_set_modbus_mode(
+                port=1,  # 末端接口板RS485接口
+                baudrate=9600,
+                timeout=10
+            )  
         except Exception as e:
             self.logger.error(f"Failed to initialize robot arm: {str(e)}")
             raise ConnectionError(f"Failed to initialize robot arm: {str(e)}")
@@ -256,18 +276,40 @@ class RealmanController:
             self.logger.error("当前控制器不是灵巧手，无法执行松开操作")
             raise RuntimeError("当前控制器不是灵巧手，无法执行松开操作")
         return self.set_hand_angle(self.hand_release_angles, block=block)
+    
+    def suck(self) -> int:
+        ret = self.robot.rm_write_single_coil(self.write_params, 1)
+        if ret == 0:
+            self.logger.info("✓ 线圈0写入1成功, 吸盘吸取")
+        else:
+            self.logger.error(f"✗ 线圈写入失败，错误码：{ret}, 吸盘吸取失败")
+        return ret
+    
+    def release_suck(self) -> int:
+        ret = self.robot.rm_write_single_coil(self.write_params, 0)
+        if ret == 0:
+            self.logger.info("✓ 线圈0写入0成功, 吸盘释放")
+        else:
+            self.logger.error(f"✗ 线圈写入失败，错误码：{ret}, 吸盘释放失败")
+        return ret
 
     def __del__(self):
         """
         析构函数，确保在对象销毁时断开机械臂连接
         """
         try:
+            if self.modbus_handle is not None:
+                ret = self.robot.rm_close_modbus_mode(port=1)
+                if ret == 0:
+                    self.logger.info("✓ Modbus模式已关闭")
+                else:
+                    self.logger.error(f"✗ 关闭Modbus模式失败，错误码：{ret}")
             if self.robot is not None:
                 handle = self.robot.rm_delete_robot_arm()
                 if handle == 0:
                     self.logger.info("\nSuccessfully disconnected from the robot arm\n")
                 else:
-                    self.logger.warning("\nFailed to disconnect from the robot arm\n")
+                    self.logger.warning("\nFailed to disconnect from the robot arm\n")           
         except Exception as e:
             self.logger.error(f"Error during disconnect in __del__: {e}") 
 

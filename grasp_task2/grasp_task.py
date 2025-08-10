@@ -30,11 +30,11 @@ class GraspTask:
 
         self.left_camera = RealsenseSensor("left_camera")     
         self.left_robot = RealmanController("left_robot",self.config.robots["left"])
-        self.left_suction = None
+        # self.left_suction = None
         
         self.right_camera = RealsenseSensor("right_camera")
         self.right_robot = RealmanController("right_robot",self.config.robots["right"])
-        self.right_suction = None
+        # self.right_suction = None
         
     
         # SAM模型
@@ -72,8 +72,10 @@ class GraspTask:
         #     self.rgb_camera.cleanup()
         if self.right_camera:
             self.right_camera.cleanup()
-        if self.right_suction:
-            self.right_suction.close()  
+        if self.left_camera:
+            self.left_camera.cleanup()
+        # if self.right_suction:
+        #     self.right_suction.close()  
         self.logger.info("资源清理完成")
 
     # 处方识别        
@@ -95,7 +97,7 @@ class GraspTask:
         camera = self.left_camera if arm_side == "left" else self.right_camera
         camera_config = self.config.cameras["left"] if arm_side == "left" else self.config.cameras["right"]
         robot_config = self.config.robots["left"] if arm_side == "left" else self.config.robots["right"]
-        suction = self.left_suction if arm_side == "left" else self.right_suction
+        # suction = self.left_suction if arm_side == "left" else self.right_suction
 
     
         # 获取图像
@@ -152,7 +154,7 @@ class GraspTask:
         )
 
         # 4. 抓取药品
-        suction.suck()
+        robot.suck()
         robot.set_pose_block(prepared_angle_pose, linear=False)
         time.sleep(2)
         robot.set_pose_block(finally_pose, linear=True)
@@ -163,7 +165,7 @@ class GraspTask:
         time.sleep(1.5)
         robot.set_arm_fang_joint()
         time.sleep(1.5)
-        suction.release()
+        robot.release_suck()
         time.sleep(2)
         robot.set_arm_init_joint()
         self.logger.info(f"药品抓取成功: {medicine_name}")
