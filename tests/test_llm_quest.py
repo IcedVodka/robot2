@@ -37,10 +37,10 @@ def test_medicine_box_detection():
         image_input = ImageInput(image_path=test_image)
         
         # 测试药品盒检测
-        medicine_name = "蒲地蓝消炎口服液"
+        medicine_name = "复方氨酚烷胺片"
         print(f"正在检测图片中的 '{medicine_name}'...")
-        x, y = api.detect_medicine_box(image_input, medicine_name)
-        print(f"检测结果：[{x}, {y}]")
+        box_coords = api.detect_medicine_box(image_input, medicine_name)
+        print(f"检测结果：{box_coords} [x1, y1, x2, y2]")
         
     except Exception as e:
         print(f"测试过程中出现错误：{str(e)}")

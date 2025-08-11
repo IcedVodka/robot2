@@ -45,6 +45,7 @@ class GraspHandler:
         """放置药品篮子
         """
 
-        self.grasp_task.place_medicine_basket()      
+        # self.grasp_task.place_medicine_basket()      
+        time.sleep(2)
 
         return True

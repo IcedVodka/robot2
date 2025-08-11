@@ -88,32 +88,37 @@ def get_images(sensor, logger) -> Tuple[Optional[np.ndarray], Optional[np.ndarra
             logger.error(f"获取图像失败: {str(e)}")
             return None, None
 
-def mark_detected_medicine_on_image(image: np.ndarray, x: int, y: int, depth: float, 
-                                  medicine_name: str, output_path: str) -> None:
+def mark_detected_medicine_on_image(image: np.ndarray, bbox: list, depth: float,
+                                   medicine_name: str, output_path: str) -> None:
     """
-    在图片上标记识别到的药品位置并保存
+    在图片上标记识别到的药品边界框并保存
     
     Args:
         image: 原始图片 (BGR格式)
-        x: 识别到的x坐标
-        y: 识别到的y坐标  
-        depth: 该点的深度值
+        bbox: 识别到的边界框坐标 [x1, y1, x2, y2]
+        depth: 中心点的深度值
         medicine_name: 药品名称
         output_path: 输出图片路径
     """
     # 复制图片避免修改原图
     marked_image = image.copy()
     
-    # 绘制圆圈标记识别位置
-    cv2.circle(marked_image, (x, y), 10, (0, 255, 0), 2)  # 绿色圆圈
+    # 解析边界框坐标
+    x1, y1, x2, y2 = bbox
     
-    # 绘制十字线
-    cv2.line(marked_image, (x-15, y), (x+15, y), (0, 255, 0), 2)  # 水平线
-    cv2.line(marked_image, (x, y-15), (x, y+15), (0, 255, 0), 2)  # 垂直线
+    # 计算中心点坐标
+    x = (x1 + x2) // 2
+    y = (y1 + y2) // 2
+    
+    # 绘制边界框
+    cv2.rectangle(marked_image, (x1, y1), (x2, y2), (0, 255, 0), 2)  # 绿色边界框
+    
+    # 绘制中心点
+    cv2.circle(marked_image, (x, y), 5, (0, 0, 255), -1)  # 红色实心圆
     
     # 准备文本信息
     text_info = f"Medicine: {medicine_name}"
-    coord_info = f"Position: ({x}, {y})"
+    coord_info = f"Box: ({x1}, {y1}, {x2}, {y2})"
     depth_info = f"Depth: {depth:.3f}mm"
     
     # 设置文本参数

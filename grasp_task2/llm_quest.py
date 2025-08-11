@@ -129,7 +129,7 @@ class VisionAPI:
         except Exception as e:
             raise RuntimeError(f"API调用失败: {str(e)}")
 
-    def detect_medicine_box(self, image_input: ImageInput, medicine_name: str) -> Tuple[int, int]:
+    def detect_medicine_box(self, image_input: ImageInput, medicine_name: str) -> List[int]:
         """
         检测图片中指定药品盒的位置
         
@@ -138,7 +138,7 @@ class VisionAPI:
             medicine_name: 要检测的药品名称
             
         Returns:
-            Tuple[int, int]: (x, y) 坐标元组，检测不到返回(0, 0)
+            List[int]: [x1, y1, x2, y2] 坐标列表，表示目标检测框的左上角和右下角坐标，检测不到返回[0, 0, 0, 0]
         """
         try:
             self._validate_image_input(image_input)
@@ -146,28 +146,28 @@ class VisionAPI:
             system_prompt = """你是一个专业的药品检测助手。你的任务是：
 1. 仔细分析图片中的药品盒
 2. 识别指定的药品名称
-3. 如果找到目标药品盒，计算其中心点坐标
+3. 如果找到目标药品盒，计算其边界框坐标（左上角和右下角）
 4. 严格按照指定格式返回结果
 
 重要规则：
 - 坐标系统：图片左上角为原点(0,0)，向右为x轴正方向，向下为y轴正方向
-- 坐标范围：x和y都应该是0到1000之间的整数
-- 返回格式：必须严格按照JSON格式返回，例如：{"x": 500, "y": 300}
-- 如果未找到目标药品，返回：{"x": 0, "y": 0}
+- 坐标范围：所有坐标值都应该是0到1000之间的整数
+- 返回格式：必须严格按照JSON格式返回，例如：{"x1": 200, "y1": 150, "x2": 500, "y2": 350}
+- 如果未找到目标药品，返回：{"x1": 0, "y1": 0, "x2": 0, "y2": 0}
 - 不要添加任何解释文字，只返回JSON格式的坐标"""
 
             user_prompt = f"""请检测图片中是否存在"{medicine_name}"这个药品盒。
 
-如果找到了，请返回该药品盒中心点的坐标，格式为JSON：
-{{"x": x坐标, "y": y坐标}}
+如果找到了，请返回该药品盒的边界框坐标，格式为JSON：
+{{"x1": 左上角x坐标, "y1": 左上角y坐标, "x2": 右下角x坐标, "y2": 右下角y坐标}}
 
 如果没有找到，请返回：
-{{"x": 0, "y": 0}}
+{{"x1": 0, "y1": 0, "x2": 0, "y2": 0}}
 
 注意：
 - 坐标值应该是0-1000之间的整数
 - 只返回JSON格式，不要添加其他文字
-- 确保坐标是药品盒的中心点位置"""
+- 确保坐标准确表示药品盒的边界"""
 
             # 调用API获取响应
             response_text = self._call_vision_api(image_input, system_prompt, user_prompt, max_tokens=100)
@@ -175,36 +175,40 @@ class VisionAPI:
             # 尝试提取JSON格式的坐标
             try:
                 # 查找JSON格式的坐标
-                json_match = re.search(r'\{[^}]*"x"[^}]*"y"[^}]*\}', response_text)
+                json_match = re.search(r'\{[^}]*"x1"[^}]*"y1"[^}]*"x2"[^}]*"y2"[^}]*\}', response_text)
                 if json_match:
                     json_str = json_match.group()
                     coords = json.loads(json_str)
-                    x = int(coords.get('x', 0))
-                    y = int(coords.get('y', 0))
-                    return (x, y)
+                    x1 = int(coords.get('x1', 0))
+                    y1 = int(coords.get('y1', 0))
+                    x2 = int(coords.get('x2', 0))
+                    y2 = int(coords.get('y2', 0))
+                    return [x1, y1, x2, y2]
                 
                 # 如果没有找到JSON格式，尝试提取数字坐标
                 numbers = re.findall(r'\d+', response_text)
-                if len(numbers) >= 2:
-                    x = int(numbers[0])
-                    y = int(numbers[1])
-                    return (x, y)
+                if len(numbers) >= 4:
+                    x1 = int(numbers[0])
+                    y1 = int(numbers[1])
+                    x2 = int(numbers[2])
+                    y2 = int(numbers[3])
+                    return [x1, y1, x2, y2]
                 
                 # 如果都没有找到，检查是否明确表示未找到
                 if any(keyword in response_text.lower() for keyword in ['没有', '未找到', '不存在', 'none', 'not found']):
-                    return (0, 0)
+                    return [0, 0, 0, 0]
                 
-                # 默认返回(0, 0)
-                return (0, 0)
+                # 默认返回[0, 0, 0, 0]
+                return [0, 0, 0, 0]
                 
             except (json.JSONDecodeError, ValueError, IndexError) as e:
                 print(f"警告：无法解析返回结果 - {e}")
                 print(f"原始返回：{response_text}")
-                return (0, 0)
+                return [0, 0, 0, 0]
                 
         except Exception as e:
             print(f"错误：{str(e)}")
-            return (0, 0)
+            return [0, 0, 0, 0]
 
 
     def extract_prescription_medicines(self, image_input: ImageInput) -> List[str]:

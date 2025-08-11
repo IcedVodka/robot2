@@ -89,20 +89,16 @@ def vertical_catch(
     correct_angle_pose：     垂直抓取物体正确的角度位姿
     finally_pose：           垂直抓取最终下爪的抓取位姿
     """
-    # 根据mask是否为空来决定获取坐标和深度信息的方式
+
     if mask is not None and mask.size > 0:
-        # 使用mask计算中心点位
         _, center = compute_angle_with_mask(mask)
         real_x, real_y = center[0], center[1]
         
-        # 使用mask的平均深度信息
+        # 使用mask中的最大深度值
         depth_mask = depth_frame[mask == 255]
         non_zero_values = depth_mask[depth_mask != 0]
         if len(non_zero_values) > 0:
-            sorted_values = np.sort(non_zero_values)
-            top_20_percent_index = int(0.2 * len(sorted_values))
-            top_20_percent_values = sorted_values[:top_20_percent_index]
-            dis = np.mean(top_20_percent_values)
+            dis = np.median(non_zero_values)
         else:
             # 如果没有有效的深度值，使用中心点的深度
             dis = depth_frame[real_y][real_x]
@@ -114,6 +110,8 @@ def vertical_catch(
         # 使用指定点的深度信息
         dis = depth_frame[real_y][real_x]
 
+
+    print("dis =  " ,dis)
     x = int(dis * (real_x - color_intr["ppx"]) / color_intr["fx"])
     y = int(dis * (real_y - color_intr["ppy"]) / color_intr["fy"])
     dis = int(dis)
