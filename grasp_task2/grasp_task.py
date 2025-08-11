@@ -53,7 +53,7 @@ class GraspTask:
         try:
             self.sam_model = SamPredictor(self.config.sam_model_path)
             # self.rgb_camera.set_up(self.config.rgb_camera_id)
-
+            setup_logger()
             self.left_camera.set_up(self.config.cameras["left"].serial,self.config.cameras["left"].resolution)
             self.left_robot.set_up()
             self.left_robot.set_arm_init_joint()
@@ -87,10 +87,11 @@ class GraspTask:
         cv2.imwrite("prescription.jpg", bgr_frame)
         self.logger.info("处方图片保存成功")
         self.medicine_list  = self.llm_api.extract_prescription_medicines(ImageInput(image_np=bgr_frame))
+        self.logger.info(f"识别到的药品: {self.medicine_list}")
         return self.medicine_list
 
     # 单个药品抓取
-    def single_medicine_grasp(self, medicine_name, arm_side = "right" , use_sam = True):
+    def single_medicine_grasp(self, medicine_name, arm_side = "right" , use_sam = False):
         self.logger.info(f"开始抓取药品: {medicine_name}")
 
         # 获取对应的机械臂和相机
@@ -104,9 +105,14 @@ class GraspTask:
         # 获取图像
         bgr_frame,depth_frame= get_images(camera, self.logger) 
 
+        #保存图片
+        cv2.imwrite(f"{arm_side}_rgb.jpg", bgr_frame)
+        self.logger.info(f"{arm_side} rgb图片保存成功")
+
         # 1. 识别药品
         # 只有两个退出条件，1. 识别成功然后抓取，不以是否抓取成功为条件 2. 识别失败
         x, y = self.llm_api.detect_medicine_box(ImageInput(image_np=bgr_frame), medicine_name)
+        self.logger.info(f"识别到的药品坐标: ({x}, {y})")
         if x <= 0 or y <= 0:
             self.logger.error(f"未能有效识别药品 '{medicine_name}'")
             return False
@@ -154,23 +160,38 @@ class GraspTask:
             y=y,
         )
         print_grasp_poses(computed_object_pose, prepared_angle_pose, finally_pose)
-        # 4. 抓取药品
-        robot.suck()
-        robot.set_pose_block(prepared_angle_pose, linear=False)
-        time.sleep(2)
-        robot.set_pose_block(finally_pose, linear=True)
-        time.sleep(2)
-        robot.set_pose_block(prepared_angle_pose, linear=True)
-        time.sleep(1.5)
-        robot.set_arm_init_joint()
-        time.sleep(1.5)
-        robot.set_arm_fang_joint()
-        time.sleep(1.5)
-        robot.release_suck()
-        time.sleep(2)
-        robot.set_arm_init_joint()
-        self.logger.info(f"药品抓取成功: {medicine_name}")
-        return True
+
+        try:
+            # 4. 抓取药品
+            robot.suck()
+            self.logger.info(f"开始移动到prepared_angle_pose{prepared_angle_pose}")
+            robot.set_pose_block(prepared_angle_pose, linear=False)
+            time.sleep(1.5)
+            self.logger.info(f"开始移动到finally_pose{finally_pose}")    
+            robot.set_pose_block(finally_pose, linear=True)
+            time.sleep(1.5)
+            finally_pose[2] = finally_pose[2] +0.01
+            self.logger.info(f"开始移动到finally_pose往上抬2cm的位置{finally_pose}")    
+            robot.set_pose_block(finally_pose, linear=True)
+            time.sleep(1.5)
+            prepared_angle_pose[2] = prepared_angle_pose[2] +0.01
+            self.logger.info(f"开始移动到prepared_angle_pose往上抬2cm的位置{prepared_angle_pose}")
+            robot.set_pose_block(prepared_angle_pose, linear=True)
+            time.sleep(1.5)
+        finally :
+            self.logger.info(f"开始移动到arm_init_joint")
+            robot.set_arm_init_joint()
+            time.sleep(1.5)
+            self.logger.info(f"开始移动到arm_fang_joint")
+            robot.set_arm_fang_joint()
+            time.sleep(1.5)
+            self.logger.info(f"开始释放 suction")
+            robot.release_suck()
+            time.sleep(2)
+            self.logger.info(f"开始移动到arm_init_joint")
+            robot.set_arm_init_joint()
+            self.logger.info(f"药品抓取成功: {medicine_name}")
+            return True
     
     # 抓取一层药品
     def layer_grasp(self):
@@ -179,6 +200,15 @@ class GraspTask:
         # 遍历尝试抓取每个药品
         for i, medicine in enumerate(medicines):
             if self.single_medicine_grasp(medicine, arm_side="right"):
+                # 抓取成功，标记为None
+                medicines[i] = None
+            else:
+                self.logger.warning(f"药品 '{medicine}' 抓取失败")
+        
+        # 更新medicine_list，只保留未抓取成功的药品
+        self.medicine_list = [m for m in medicines if m is not None]
+        for i, medicine in enumerate(medicines):
+            if self.single_medicine_grasp(medicine, arm_side="left"):
                 # 抓取成功，标记为None
                 medicines[i] = None
             else:

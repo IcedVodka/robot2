@@ -27,7 +27,7 @@ def test_prescription_recognition():
 
 def test_medicine_box_detection():
     """测试药品盒检测功能"""
-    test_image = "data/test_images/camera_12_20250730_165750.jpg"
+    test_image = "/home/s402/yd/robot2/left_rgb.jpg"
     
     try:
         # 创建API实例
@@ -37,7 +37,7 @@ def test_medicine_box_detection():
         image_input = ImageInput(image_path=test_image)
         
         # 测试药品盒检测
-        medicine_name = "口炎清颗粒"
+        medicine_name = "蒲地蓝消炎口服液"
         print(f"正在检测图片中的 '{medicine_name}'...")
         x, y = api.detect_medicine_box(image_input, medicine_name)
         print(f"检测结果：[{x}, {y}]")
@@ -48,8 +48,8 @@ def test_medicine_box_detection():
 
 if __name__ == "__main__":
     # 分别运行两个测试
-    print("=== 测试处方单识别 ===")
-    test_prescription_recognition()
+    # print("=== 测试处方单识别 ===")
+    # test_prescription_recognition()
     
     print("\n=== 测试药品盒检测 ===")
     test_medicine_box_detection() 

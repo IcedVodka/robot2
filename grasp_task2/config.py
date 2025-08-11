@@ -145,7 +145,7 @@ if os.path.exists(_config_path):
     print(f"SAM模型路径: {grasp_config.sam_model_path}")
     print("相机配置:")
     for pos, camera in grasp_config.cameras.items():
-        print(f"  {pos}: 序列号={camera.serial}, 分辨率={camera.resolution}")
+        print(f"  {pos}: 序列号={camera.serial}, 分辨率={camera.resolution}, 内参={camera.color_intr}")
     print("机械臂配置:")
     for pos, robot in grasp_config.robots.items():
         print(f"  {pos}: IP={robot.ip}:{robot.port}, 速度={robot.arm_move_speed}%")

@@ -133,9 +133,9 @@ def vertical_catch(
     prepared_angle_pose = obj_pose.copy()
     finally_pose = obj_pose.copy()
 
-    prepared_angle_pose[0] = obj_pose.copy()[0] + adjustment[0]
+    prepared_angle_pose[1] = obj_pose.copy()[1] - adjustment[0]
     prepared_angle_pose[3:] = current_pose[3:]
-    finally_pose[0] =  obj_pose.copy()[0] + adjustment[1]
+    finally_pose[1] =  obj_pose.copy()[1] - adjustment[1]
     finally_pose[3:] = current_pose[3:]
 
 

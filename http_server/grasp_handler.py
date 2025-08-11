@@ -36,8 +36,7 @@ class GraspHandler:
             list: 更新后的药品列表
         """
 
-        self.grasp_task.shelf_grasp() 
-        self.medicine_list = medicines[1:] if medicines and len(medicines) > 0 else None
+        self.grasp_task.layer_grasp()
         return self.medicine_list
 
         # return medicines[1:] if medicines and len(medicines) > 0 else None
