@@ -19,6 +19,7 @@ from typing import Tuple, Optional
 import numpy as np
 from utils.others import get_images , mark_detected_medicine_on_image
 from utils.others import print_grasp_poses
+from Robot.sensor.lift import SerialLiftingMotor
 
 class GraspTask:
     def __init__(self):
@@ -36,6 +37,8 @@ class GraspTask:
         self.right_camera = RealsenseSensor("right_camera")
         self.right_robot = RealmanController("right_robot",self.config.robots["right"])
         # self.right_suction = None
+
+        self.lift = SerialLiftingMotor()
         
     
         # SAM模型
@@ -54,6 +57,7 @@ class GraspTask:
             self.sam_model = SamPredictor(self.config.sam_model_path)
             # self.rgb_camera.set_up(self.config.rgb_camera_id)
             setup_logger()
+            self.lift.run()
             self.left_camera.set_up(self.config.cameras["left"].serial,self.config.cameras["left"].resolution)
             self.left_robot.set_up()
             self.left_robot.set_arm_init_joint()
