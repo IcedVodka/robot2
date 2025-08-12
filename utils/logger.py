@@ -27,15 +27,19 @@ class ColoredFormatter(logging.Formatter):
         return formatted
 
 
-def setup_logger(log_level=logging.INFO, log_file='robot_system.log', enable_color=True):
+def setup_logger(log_level=logging.INFO, log_file=None, enable_color=True):
     """
     设置日志系统
     
     Args:
         log_level: 日志级别
-        log_file: 日志文件名
+        log_file: 日志文件名，如果为None则自动根据时间生成文件名
         enable_color: 是否启用颜色输出
     """
+    # 如果未提供日志文件名，则根据当前时间生成
+    if log_file is None:
+        current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file = f"robot_system_{current_time}.log"
     # 创建logs目录
     log_dir = 'logs'
     if not os.path.exists(log_dir):

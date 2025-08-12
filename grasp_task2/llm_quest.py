@@ -23,13 +23,15 @@ class ImageInput:
 class VisionAPI:
     """视觉API封装类"""
     
-    def __init__(self, api_key: Optional[str] = None, base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"):
+    def __init__(self, api_key: Optional[str] = None, base_url: str = "http://localhost:11434/v1"):
         """
         初始化视觉API类
         
         Args:
             api_key: API密钥，如果为None则从环境变量获取
             base_url: API基础URL
+            base_url: str = "http://localhost:11434/v1"
+            base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
         """
         self.api_key = api_key or os.getenv('DASHSCOPE_API_KEY')
         if not self.api_key:
@@ -87,7 +89,7 @@ class VisionAPI:
             if ext not in ['.jpg', '.jpeg']:
                 raise ValueError(f"图片必须是JPG格式 (当前格式: {ext})")
 
-    def _call_vision_api(self, image_input: ImageInput, system_prompt: str, user_prompt: str, max_tokens: int = 100 , temperature = 0.1) -> str:
+    def _call_vision_api(self, image_input: ImageInput, system_prompt: str, user_prompt: str, model = "qwen2.5vl:7b", max_tokens: int = 100 , temperature = 0.1) -> str:
         """
         调用视觉API
         
@@ -95,6 +97,7 @@ class VisionAPI:
             image_input: 图像输入数据
             system_prompt: 系统提示词
             user_prompt: 用户提示词
+            model:模型名称 "qwen-vl-max-latest","qwen2.5vl:7b"
             max_tokens: 最大token数
             
         Returns:
@@ -104,7 +107,7 @@ class VisionAPI:
             base64_image = self._encode_image(image_input)
             
             completion = self.client.chat.completions.create(
-                model="qwen-vl-max-latest",
+                model= model,
                 messages=[
                     {
                         "role": "system",

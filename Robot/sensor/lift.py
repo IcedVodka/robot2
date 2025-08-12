@@ -19,7 +19,7 @@ class SerialLiftingMotor:
         self.MIN_MOTOR_POSITION = 0
         self.MAX_MOTOR_POSITION = 36044800  #//勿修改！！！ 32768*1100(圈) = 36044800 对应700mm行程的丝杠，
         self.motor_positon_read = 0
-        self.motor_position_set(0)
+        # self.motor_position_set(0)
         # 配置串口参数
     def init_serial(self, port, baudrate=115200):
         try:

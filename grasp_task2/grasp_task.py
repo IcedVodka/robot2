@@ -3,6 +3,7 @@ import sys
 import os
 import logging
 import cv2
+import datetime
 
 from Robot.sensor import depth_camera
 from utils.logger import setup_logger, get_logger
@@ -21,6 +22,30 @@ from utils.others import get_images , mark_detected_medicine_on_image
 from utils.others import print_grasp_poses
 from Robot.sensor.lift import SerialLiftingMotor
 
+def get_timestamped_path(filename):
+    """
+    生成带有时间戳的文件路径，保存到logs文件夹下
+    
+    Args:
+        filename: 原始文件名
+    
+    Returns:
+        带有时间戳的文件路径
+    """
+    # 确保logs文件夹存在
+    logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logs")
+    if not os.path.exists(logs_dir):
+        os.makedirs(logs_dir)
+    
+    # 生成时间戳
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # 构建新的文件名：时间戳_原始文件名
+    new_filename = f"{timestamp}_{filename}"
+    
+    # 返回完整路径
+    return os.path.join(logs_dir, new_filename)
+
 class GraspTask:
     def __init__(self):
         self.logger = get_logger("GraspTask")
@@ -38,8 +63,10 @@ class GraspTask:
         self.right_robot = RealmanController("right_robot",self.config.robots["right"])
         # self.right_suction = None
 
-        # self.lift = SerialLiftingMotor()
-        
+        self.lift = SerialLiftingMotor()
+        self.lift.cmd_vel_callback(360)
+        self.logger.info("移动升降机到360,开始sleep 10 秒")
+        time.sleep(10)
     
         # SAM模型
         self.sam_model = None    
@@ -61,11 +88,11 @@ class GraspTask:
             self.left_camera.set_up(self.config.cameras["left"].serial,self.config.cameras["left"].resolution)
             self.left_robot.set_up()
             self.left_robot.release_suck()
-            # self.left_robot.set_arm_init_joint()
+            self.left_robot.set_arm_init_joint()
             self.right_camera.set_up(self.config.cameras["right"].serial,self.config.cameras["right"].resolution)         
             self.right_robot.set_up()
             self.right_robot.release_suck()
-            # self.right_robot.set_arm_init_joint()
+            self.right_robot.set_arm_init_joint()
             time.sleep(2)
             self.logger.info("所有组件初始化完成")
             return True
@@ -88,17 +115,20 @@ class GraspTask:
     # 处方识别        
     def prescription_recognition(self):
         self.logger.info("开始处方识别")
+        self.medicine_list = []  
         bgr_frame = self.left_camera.get_information()['color']
         #保存图片
-        cv2.imwrite("prescription.jpg", bgr_frame)
-        self.logger.info("处方图片保存成功")
+        img_path = get_timestamped_path("prescription.jpg")
+        cv2.imwrite(img_path, bgr_frame)
+        self.logger.info(f"处方图片保存成功: {img_path}")
         self.medicine_list  = self.llm_api.extract_prescription_medicines(ImageInput(image_np=bgr_frame))
         self.logger.info(f"识别到的药品: {self.medicine_list}")
         return self.medicine_list
 
     # 单个药品抓取
     def single_medicine_grasp(self, medicine_name, arm_side = "right" , use_sam = False):
-        self.logger.info(f"开始抓取药品: {medicine_name}")
+        flag = False
+        self.logger.info(f"single_medicine_grasp：开始抓取药品: {medicine_name}")
 
         # 获取对应的机械臂和相机
         robot = self.left_robot if arm_side == "left" else self.right_robot
@@ -112,8 +142,9 @@ class GraspTask:
         bgr_frame,depth_frame= get_images(camera, self.logger) 
 
         #保存图片
-        cv2.imwrite(f"{arm_side}_rgb.jpg", bgr_frame)
-        self.logger.info(f"{arm_side} rgb图片保存成功")
+        img_path = get_timestamped_path(f"{arm_side}_rgb.jpg")
+        cv2.imwrite(img_path, bgr_frame)
+        self.logger.info(f"{arm_side} rgb图片保存成功: {img_path}")
 
         # 1. 识别药品
         # 只有两个退出条件，1. 识别成功然后抓取，不以是否抓取成功为条件 2. 识别失败
@@ -130,17 +161,25 @@ class GraspTask:
         x = (x1 + x2) // 2
         y = (y1 + y2) // 2
         depth_value = depth_frame[y, x]
-        self.logger.info(f"获取到的深度值: {depth_value}")
+        self.logger.info(f"首次获取到的深度值: {depth_value}")
         
-        # 确保获取到有效的深度值
-        while depth_value <= 0:
-            self.logger.info(f"获取到无效的深度值: {depth_value}，重新获取图像")
+        # 确保获取到有效的深度值，最多尝试200次
+        attempt_count = 0
+        max_attempts = 200
+        while depth_value <= 0 and attempt_count < max_attempts:
             bgr_frame, depth_frame = get_images(camera, self.logger)
             depth_value = depth_frame[y, x]
-            self.logger.info(f"获取到的深度值: {depth_value}")
+            time.sleep(0.3)
+            attempt_count += 1
+            
+        if depth_value <= 0:
+            self.logger.error(f"无法获取药品 '{medicine_name}' 的有效深度信息，已尝试 {max_attempts} 次")
+            return False
+
+        self.logger.info(f"最终获取到的深度值: {depth_value}")
         
         # 保存标记了识别位置的图片
-        marked_image_path = f"{arm_side}_detected_medicine.jpg"
+        marked_image_path = get_timestamped_path(f"{arm_side}_detected_medicine.jpg")
         mark_detected_medicine_on_image(bgr_frame, bbox, depth_value, medicine_name, marked_image_path)
         self.logger.info(f"药品识别边界框标记图片保存成功: {marked_image_path}")
 
@@ -151,8 +190,9 @@ class GraspTask:
             center, mask = self.sam_model.predict(rgb_image, bboxes=bbox)
             self.logger.info(f"Sam分割成功")
             #保存图片
-            cv2.imwrite(f"{arm_side}_sam_mask.jpg", mask)
-            self.logger.info(f"Sam分割结果保存成功: {arm_side}_sam_mask.jpg")
+            img_path = get_timestamped_path(f"{arm_side}_sam_mask.jpg")
+            cv2.imwrite(img_path, mask)
+            self.logger.info(f"Sam分割结果保存成功: {img_path}")
         else:
             self.logger.info(f"未使用Sam分割")
 
@@ -171,19 +211,19 @@ class GraspTask:
         )      
 
         if arm_side == "right":
-            prepared_angle_pose[3:] = [-1.571, -1.571, 0]
-            finally_pose[3:] = [-1.571, -1.571, 0]
+            prepared_angle_pose[3:] = [-1.564, 0, 3.141]
+            finally_pose[3:] = [-1.564, 0, 3.141]
         else:
-            prepared_angle_pose[3:] = [1.571, -1.571, 0]
-            finally_pose[3:] = [1.571, -1.571, 0]
+            prepared_angle_pose[3:] = [-1.571, 0, 0]
+            finally_pose[3:] = [-1.571, 0, 0]
 
          
-        print_grasp_poses(computed_object_pose, prepared_angle_pose, finally_pose)
+        print_grasp_poses(computed_object_pose, prepared_angle_pose, finally_pose ,logger=self.logger)
 
+        robot.suck()
 
         try:
-            # 4. 抓取药品
-            robot.suck()
+            # 4. 抓取药品            
             self.logger.info(f"开始移动到prepared_angle_pose{prepared_angle_pose}")
             robot.set_pose_block(prepared_angle_pose, linear=False)
             time.sleep(1.5)
@@ -198,6 +238,10 @@ class GraspTask:
             self.logger.info(f"开始移动到prepared_angle_pose往上抬2cm的位置{prepared_angle_pose}")
             robot.set_pose_block(prepared_angle_pose, linear=True)
             time.sleep(1.5)
+            self.logger.info(f"药品抓取成功: {medicine_name}")  
+            flag = True
+        except:
+            self.logger.error(f"药品抓取失败: {medicine_name}")
         finally :
             self.logger.info(f"开始移动到arm_init_joint")
             robot.set_arm_init_joint()
@@ -210,44 +254,64 @@ class GraspTask:
             time.sleep(2)
             self.logger.info(f"开始移动到arm_init_joint")
             robot.set_arm_init_joint()
-            self.logger.info(f"药品抓取成功: {medicine_name}")
-            return True
+            self.logger.info(f"复位姿态成功")
+            return flag
     
     # 抓取一层药品
     def layer_grasp(self):
-        medicines = self.medicine_list.copy()
+        self.logger.info(f"layer_grasp：开始抓取一层药品，当前药品列表: {self.medicine_list}")
         
+        if self.medicine_list is None or len(self.medicine_list) == 0:
+            self.logger.info("layer_grasp：没有药品可以抓取,直接返回")
+            return 
+        
+        medicines = self.medicine_list.copy()        
         # 遍历尝试抓取每个药品
         for i, medicine in enumerate(medicines):
             if self.single_medicine_grasp(medicine, arm_side="right"):
                 # 抓取成功，标记为None
                 medicines[i] = None
             else:
-                self.logger.warning(f"药品 '{medicine}' 抓取失败")
-        
+                self.logger.warning(f"右臂：药品 '{medicine}' 抓取失败")        
         # 更新medicine_list，只保留未抓取成功的药品
         self.medicine_list = [m for m in medicines if m is not None]
+        self.logger.info(f"右臂抓取完毕，开始左臂抓取，当前药品列表: {self.medicine_list}")
 
+
+
+        if self.medicine_list is None or len(self.medicine_list) == 0:
+            self.logger.info("layer_grasp：没有药品可以抓取,直接返回")
+            return 
+        
         medicines = self.medicine_list.copy()
         for i, medicine in enumerate(self.medicine_list):
             if self.single_medicine_grasp(medicine, arm_side="left"):
                 # 抓取成功，标记为None
                 medicines[i] = None
             else:
-                self.logger.warning(f"药品 '{medicine}' 抓取失败")
-        
+                self.logger.warning(f"左臂：药品 '{medicine}' 抓取失败")        
         # 更新medicine_list，只保留未抓取成功的药品
         self.medicine_list = [m for m in medicines if m is not None]
-        
-        self.logger.info(f"抓取一层药品完成，剩余药品: {self.medicine_list}")
-        return True
+        self.logger.info(f"左臂抓取完毕，剩余药品: {self.medicine_list}")
+
+        return 
     
     # 抓取一个货架多层药品
     def shelf_grasp(self):
-        self.left_robot.set_arm_fang_joint()
-        time.sleep(2)
-        self.left_robot.set_arm_init_joint()
-        time.sleep(2)
+        self.logger.info(f"shelf_grasp：开始抓取一个货架多层药品，当前药品列表: {self.medicine_list}")
+        if self.medicine_list is None or len(self.medicine_list) == 0:
+            self.logger.info("shelf_grasp：没有药品可以抓取,直接返回")
+            return 
+        
+        self.layer_grasp()
+        self.lift.cmd_vel_callback(80)
+        self.logger.info("移动升降机到80,开始sleep 15 秒")
+        time.sleep(15)
+
+        self.layer_grasp()
+        self.lift.cmd_vel_callback(360)
+        self.logger.info("移动升降机到360,开始sleep 15 秒")
+        time.sleep(15)
     
     # 放置药品篮子
     def place_medicine_basket(self):

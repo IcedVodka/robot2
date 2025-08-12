@@ -14,8 +14,7 @@ class GraspHandler:
     def __init__(self):
         """初始化抓取处理器"""
         self.grasp_task = GraspTask()
-        self.medicine_list = None
-
+     
 
     def process_prescription_recognition(self):
         """处方识别
@@ -23,9 +22,9 @@ class GraspHandler:
             list: 药品列表，例如 ["药品A", "药品B"]            
         """
         # 调用grasp_task的处方识别方法
-        self.medicine_list =  self.grasp_task.prescription_recognition()
+        self.grasp_task.prescription_recognition()
 
-        return self.medicine_list
+        return self.grasp_task.medicine_list
 
 
     def process_grasp(self, medicines):
@@ -36,8 +35,9 @@ class GraspHandler:
             list: 更新后的药品列表
         """
 
-        self.grasp_task.layer_grasp()
-        return self.medicine_list
+        self.grasp_task.shelf_grasp()
+        return self.grasp_task.medicine_list
+
 
         # return medicines[1:] if medicines and len(medicines) > 0 else None
     
