@@ -234,8 +234,8 @@ class SerialLiftingMotor:
 
 if __name__ == "__main__":
     app = SerialLiftingMotor()
-    app.run()
-    app.cmd_vel_callback(360)
+    # app.run()
+    app.cmd_vel_callback(380)
     # while True:
     #     app.cmd_vel_callback(200)
     #     time.sleep(20)   

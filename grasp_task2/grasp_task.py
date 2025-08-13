@@ -64,8 +64,8 @@ class GraspTask:
         # self.right_suction = None
 
         self.lift = SerialLiftingMotor()
-        self.lift.cmd_vel_callback(360)
-        self.logger.info("移动升降机到360,开始sleep 10 秒")
+        self.lift.cmd_vel_callback(380)
+        self.logger.info("移动升降机到380,开始sleep 10 秒")
         time.sleep(10)
     
         # SAM模型
@@ -75,6 +75,9 @@ class GraspTask:
         # 药品列表
         self.medicine_list = []  
 
+        self.right_moving_joints = [-84.74700164794922, 102.43099975585938, -131.4669952392578, -7.565999984741211, -62.077999114990234, 195.55599975585938]
+        self.left_moving_joints = [85.58699798583984, 110.4489974975586, -119.98999786376953, 1.2890000343322754, -81.37899780273438, -183.7310028076172]
+
 
         self._init_components()
         
@@ -82,18 +85,18 @@ class GraspTask:
         """初始化所有组件"""
         try:
             self.sam_model = SamPredictor(self.config.sam_model_path)
-            # self.rgb_camera.set_up(self.config.rgb_camera_id)
             setup_logger()
-            # self.lift.run()
             self.left_camera.set_up(self.config.cameras["left"].serial,self.config.cameras["left"].resolution)
             self.left_robot.set_up()
+            self.left_robot.set_arm_joints_block([84.81500244140625, -47.86800003051758, -20.655000686645508, 2.125, -82.52300262451172, -183.72500610351562])
             self.left_robot.release_suck()
-            self.left_robot.set_arm_init_joint()
+            
             self.right_camera.set_up(self.config.cameras["right"].serial,self.config.cameras["right"].resolution)         
             self.right_robot.set_up()
             self.right_robot.release_suck()
-            self.right_robot.set_arm_init_joint()
+            self.right_robot.set_arm_joints_block(self.right_moving_joints)
             time.sleep(2)
+
             self.logger.info("所有组件初始化完成")
             return True
         except Exception as e:
@@ -114,19 +117,26 @@ class GraspTask:
 
     # 处方识别        
     def prescription_recognition(self):
-        self.logger.info("开始处方识别")
+        self.logger.info("开始处方识别")        
         self.medicine_list = []  
-        bgr_frame = self.left_camera.get_information()['color']
-        #保存图片
-        img_path = get_timestamped_path("prescription.jpg")
-        cv2.imwrite(img_path, bgr_frame)
-        self.logger.info(f"处方图片保存成功: {img_path}")
-        self.medicine_list  = self.llm_api.extract_prescription_medicines(ImageInput(image_np=bgr_frame))
-        self.logger.info(f"识别到的药品: {self.medicine_list}")
+
+        try:
+            bgr_frame = self.left_camera.get_information()['color']
+            #保存图片
+            img_path = get_timestamped_path("prescription.jpg")
+            cv2.imwrite(img_path, bgr_frame)
+            self.logger.info(f"处方图片保存成功: {img_path}")
+            self.medicine_list  = self.llm_api.extract_prescription_medicines(ImageInput(image_np=bgr_frame))
+            self.logger.info(f"识别到的药品: {self.medicine_list}")
+
+        finally :
+            if self.medicine_list is not None and len(self.medicine_list)!= 0 :
+                self.left_robot.set_arm_joints_block(self.left_moving_joints)
         return self.medicine_list
 
     # 单个药品抓取
     def single_medicine_grasp(self, medicine_name, arm_side = "right" , use_sam = False):
+        
         flag = False
         self.logger.info(f"single_medicine_grasp：开始抓取药品: {medicine_name}")
 
@@ -135,9 +145,9 @@ class GraspTask:
         camera = self.left_camera if arm_side == "left" else self.right_camera
         camera_config = self.config.cameras["left"] if arm_side == "left" else self.config.cameras["right"]
         robot_config = self.config.robots["left"] if arm_side == "left" else self.config.robots["right"]
-        # suction = self.left_suction if arm_side == "left" else self.right_suction
 
-    
+        robot.set_arm_init_joint()
+        time.sleep(2)
         # 获取图像
         bgr_frame,depth_frame= get_images(camera, self.logger) 
 
@@ -148,7 +158,7 @@ class GraspTask:
 
         # 1. 识别药品
         # 只有两个退出条件，1. 识别成功然后抓取，不以是否抓取成功为条件 2. 识别失败
-        bbox = self.llm_api.detect_medicine_box(ImageInput(image_np=bgr_frame), medicine_name)
+        bbox = self.llm_api.detect_medicine_box(ImageInput(image_path=img_path), medicine_name)
         self.logger.info(f"识别到的药品边界框: {bbox}")
         if bbox[0] <= 0 or bbox[1] <= 0 or bbox[2] <= 0 or bbox[3] <= 0:
             self.logger.error(f"未能有效识别药品 '{medicine_name}'")
@@ -157,11 +167,15 @@ class GraspTask:
         x1, y1, x2, y2 = bbox
         self.logger.info(f"成功识别药品 '{medicine_name}'，边界框: ({x1}, {y1}, {x2}, {y2})")
         
-        # 计算中心点坐标用于深度值获取
-        x = (x1 + x2) // 2
-        y = (y1 + y2) // 2
-        depth_value = depth_frame[y, x]
-        self.logger.info(f"首次获取到的深度值: {depth_value}")
+        try:
+            # 计算中心点坐标用于深度值获取
+            x = (x1 + x2) // 2
+            y = (y1 + y2) // 2
+            depth_value = depth_frame[y, x]
+            self.logger.info(f"首次获取到的深度值: {depth_value}")
+        except:
+            self.logger.error(f"未能获取到有效深度值")
+            return False
         
         # 确保获取到有效的深度值，最多尝试200次
         attempt_count = 0
@@ -214,8 +228,8 @@ class GraspTask:
             prepared_angle_pose[3:] = [-1.564, 0, 3.141]
             finally_pose[3:] = [-1.564, 0, 3.141]
         else:
-            prepared_angle_pose[3:] = [-1.571, 0, 0]
-            finally_pose[3:] = [-1.571, 0, 0]
+            prepared_angle_pose[3:] = [1.571, 0.524, 3.142]
+            finally_pose[3:] = [1.571, 0.524, 3.142]
 
          
         print_grasp_poses(computed_object_pose, prepared_angle_pose, finally_pose ,logger=self.logger)
@@ -230,12 +244,16 @@ class GraspTask:
             self.logger.info(f"开始移动到finally_pose{finally_pose}")    
             robot.set_pose_block(finally_pose, linear=True)
             time.sleep(1.5)
-            finally_pose[2] = finally_pose[2] +0.01
+            finally_pose[2] = finally_pose[2] +0.02
             self.logger.info(f"开始移动到finally_pose往上抬2cm的位置{finally_pose}")    
             robot.set_pose_block(finally_pose, linear=True)
             time.sleep(1.5)
-            prepared_angle_pose[2] = prepared_angle_pose[2] +0.01
-            self.logger.info(f"开始移动到prepared_angle_pose往上抬2cm的位置{prepared_angle_pose}")
+            prepared_angle_pose[2] = prepared_angle_pose[2] +0.02
+            if arm_side == "right":
+                prepared_angle_pose[1] = prepared_angle_pose[1] +0.03
+            else:
+                prepared_angle_pose[1] = prepared_angle_pose[1] -0.03
+            self.logger.info(f"开始移动到prepared_angle_pose往上抬2cm,往后抬3cm的位置{prepared_angle_pose}")
             robot.set_pose_block(prepared_angle_pose, linear=True)
             time.sleep(1.5)
             self.logger.info(f"药品抓取成功: {medicine_name}")  
@@ -243,17 +261,22 @@ class GraspTask:
         except:
             self.logger.error(f"药品抓取失败: {medicine_name}")
         finally :
-            self.logger.info(f"开始移动到arm_init_joint")
-            robot.set_arm_init_joint()
-            time.sleep(1.5)
-            self.logger.info(f"开始移动到arm_fang_joint")
+            self.logger.info(f"开始移动到mov")
+            if arm_side == "right":
+                robot.set_arm_joints_block(self.right_moving_joints)
+            else:
+                robot.set_arm_joints_block(self.left_moving_joints)
+            time.sleep(2)
+            self.logger.info(f"开始移动到放取预备位姿")
             robot.set_arm_fang_joint()
             time.sleep(1.5)
             self.logger.info(f"开始释放 suction")
             robot.release_suck()
             time.sleep(2)
-            self.logger.info(f"开始移动到arm_init_joint")
-            robot.set_arm_init_joint()
+            if arm_side == "right":
+                robot.set_arm_joints_block(self.right_moving_joints)
+            else:
+                robot.set_arm_joints_block(self.left_moving_joints)
             self.logger.info(f"复位姿态成功")
             return flag
     
@@ -303,24 +326,65 @@ class GraspTask:
             self.logger.info("shelf_grasp：没有药品可以抓取,直接返回")
             return 
         
+        self.lift.cmd_vel_callback(300)
+        self.logger.info("移动升降机到300,开始sleep 15 秒")
+        time.sleep(10)
         self.layer_grasp()
-        self.lift.cmd_vel_callback(80)
-        self.logger.info("移动升降机到80,开始sleep 15 秒")
+
+        self.lift.cmd_vel_callback(0)
+        self.logger.info("移动升降机到0,开始sleep 15 秒")
+        time.sleep(15)
+        self.layer_grasp()
+
+        self.lift.cmd_vel_callback(380)
+        self.logger.info("移动升降机到380,开始sleep 15 秒")
         time.sleep(15)
 
-        self.layer_grasp()
-        self.lift.cmd_vel_callback(360)
-        self.logger.info("移动升降机到360,开始sleep 15 秒")
-        time.sleep(15)
     
     # 放置药品篮子
     def place_medicine_basket(self):
+        
         self.logger.info("开始放置药品篮子")
         self.medicine_list = [] 
 
-        self.right_robot.set_arm_fang_joint()
+        l = [88.4, -31.496, -106.685, 5.506, -55.987,-184.599]
+        r = [-84.745, -26.176, -111.336, -1.509, -51.940, 195.556]
+
+        self.left_robot.suck()
+        self.right_robot.suck()
+        self.left_robot.robot.rm_movej(joint = l ,v = 15 ,r = 0,connect=0,block= 0)
+        self.right_robot.robot.rm_movej(joint = r ,v = 15,r = 0,connect=0,block= 0)
+        self.logger.info("移动到预备位置")     
+        time.sleep(7)
+
+
+        r = [18.198/1000, -230.454/1000,173.369/1000,-3.080,-0.154,1.404]
+        l = [-4.777/1000,239.159/1000,163.029/1000,3.055,-0.243,-1.572]
+        r[2] = r[2] - 0.015
+        l[2] = l[2] - 0.015
+        self.left_robot.robot.rm_movel(pose = l ,v = 15,r = 0,connect=0,block= 0)
+        self.right_robot.robot.rm_movel(pose = r ,v = 15,r = 0,connect=0,block= 0)
+        self.logger.info("下降1.5cm")
+        time.sleep(15)
+
+        
+        r[2] = r[2] + 0.10
+        l[2] = l[2] + 0.10        
+        self.left_robot.robot.rm_movel(pose = l ,v = 15,r = 0,connect=0,block= 0)
+        self.right_robot.robot.rm_movel(pose = r ,v = 15,r = 0,connect=0,block= 0)
+        self.logger.info("上升10cm")
+        time.sleep(15)
+
+        l[1] = l[1] + 0.14
+        r[1] = r[1] - 0.14
+        self.left_robot.robot.rm_movel(pose = l ,v = 15,r = 0,connect=0,block= 0)
+        self.right_robot.robot.rm_movel(pose = r ,v = 15,r = 0,connect=0,block= 0)
+        self.logger.info("向前14cm")
+        time.sleep(20)
+
+        self.left_robot.release_suck()
+        self.right_robot.release_suck()
         time.sleep(2)
-        self.right_robot.set_arm_init_joint()
 
         
     def run(self):

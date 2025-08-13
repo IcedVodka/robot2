@@ -7,11 +7,11 @@ from grasp_task2.llm_quest import VisionAPI, ImageInput
 
 def test_prescription_recognition():
     """测试处方单识别功能"""
-    test_image = "/home/s402/yd/robot2/data/test_images/realsense_color_1753953349.jpg"
+    test_image = "data/cam_capture/realsense_color_327122078945_20250813_112112.jpg"
     
     try:
         # 创建API实例
-        api = VisionAPI(base_url="http://localhost:11434/v1")
+        api = VisionAPI()
         
         # 创建图像输入
         image_input = ImageInput(image_path=test_image)
@@ -27,17 +27,17 @@ def test_prescription_recognition():
 
 def test_medicine_box_detection():
     """测试药品盒检测功能"""
-    test_image = "data/test_images/camera_12_20250730_165750.jpg"
+    test_image = "/home/s402/yd/robot2/logs/20250813_133927_left_rgb.jpg"
     
     try:
         # 创建API实例
-        api = VisionAPI(base_url="http://localhost:11434/v1")
+        api = VisionAPI(base_url="https://dashscope.aliyuncs.com/compatible-mode/v1")
         
         # 创建图像输入
         image_input = ImageInput(image_path=test_image)
         
         # 测试药品盒检测
-        medicine_name = "百合固金片"
+        medicine_name = "硫酸氢氯吡格雷片"
         print(f"正在检测图片中的 '{medicine_name}'...")
         box_coords = api.detect_medicine_box(image_input, medicine_name)
         print(f"检测结果：{box_coords} [x1, y1, x2, y2]")

@@ -23,7 +23,7 @@ class ImageInput:
 class VisionAPI:
     """视觉API封装类"""
     
-    def __init__(self, api_key: Optional[str] = None, base_url: str = "http://localhost:11434/v1"):
+    def __init__(self, api_key: Optional[str] = None, base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"):
         """
         初始化视觉API类
         
@@ -89,7 +89,7 @@ class VisionAPI:
             if ext not in ['.jpg', '.jpeg']:
                 raise ValueError(f"图片必须是JPG格式 (当前格式: {ext})")
 
-    def _call_vision_api(self, image_input: ImageInput, system_prompt: str, user_prompt: str, model = "qwen2.5vl:7b", max_tokens: int = 100 , temperature = 0.1) -> str:
+    def _call_vision_api(self, image_input: ImageInput, system_prompt: str, user_prompt: str, model = "qwen-vl-max-latest", max_tokens: int = 100 , temperature = 0.1) -> str:
         """
         调用视觉API
         
@@ -154,21 +154,22 @@ class VisionAPI:
 
 重要规则：
 - 坐标系统：图片左上角为原点(0,0)，向右为x轴正方向，向下为y轴正方向
-- 坐标范围：所有坐标值都应该是0到1000之间的整数
 - 返回格式：必须严格按照JSON格式返回，例如：{"x1": 200, "y1": 150, "x2": 500, "y2": 350}
 - 如果未找到目标药品，返回：{"x1": 0, "y1": 0, "x2": 0, "y2": 0}
 - 不要添加任何解释文字，只返回JSON格式的坐标"""
 
-            user_prompt = f"""请检测图片中是否存在"{medicine_name}"这个药品盒。
 
-如果找到了，请返回该药品盒的边界框坐标，格式为JSON：
+
+            user_prompt = f"""请在图片中精确找到药品"{medicine_name}"。
+
+如果找到该药品，请返回JSON格式的边界框信息。：
 {{"x1": 左上角x坐标, "y1": 左上角y坐标, "x2": 右下角x坐标, "y2": 右下角y坐标}}
 
 如果没有找到，请返回：
 {{"x1": 0, "y1": 0, "x2": 0, "y2": 0}}
 
 注意：
-- 坐标值应该是0-1000之间的整数
+- 只返回与'{medicine_name}'完全匹配或高度相似的药品信息。
 - 只返回JSON格式，不要添加其他文字
 - 确保坐标准确表示药品盒的边界"""
 
