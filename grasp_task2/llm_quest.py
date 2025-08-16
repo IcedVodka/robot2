@@ -89,7 +89,7 @@ class VisionAPI:
             if ext not in ['.jpg', '.jpeg']:
                 raise ValueError(f"图片必须是JPG格式 (当前格式: {ext})")
 
-    def _call_vision_api(self, image_input: ImageInput, system_prompt: str, user_prompt: str, model = "qwen-vl-max-latest", max_tokens: int = 100 , temperature = 0.1) -> str:
+    def _call_vision_api(self, image_input: ImageInput, system_prompt: str, user_prompt: str, model = "qwen-vl-max-2025-04-08", max_tokens: int = 1000 , temperature = 0.1) -> str:
         """
         调用视觉API
         
@@ -175,6 +175,7 @@ class VisionAPI:
 
             # 调用API获取响应
             response_text = self._call_vision_api(image_input, system_prompt, user_prompt, max_tokens=100)
+            print(response_text)
             
             # 尝试提取JSON格式的坐标
             try:
@@ -190,6 +191,86 @@ class VisionAPI:
                     return [x1, y1, x2, y2]
                 
                 # 如果没有找到JSON格式，尝试提取数字坐标
+                numbers = re.findall(r'\d+', response_text)
+                if len(numbers) >= 4:
+                    x1 = int(numbers[0])
+                    y1 = int(numbers[1])
+                    x2 = int(numbers[2])
+                    y2 = int(numbers[3])
+                    return [x1, y1, x2, y2]
+                
+                # 如果都没有找到，检查是否明确表示未找到
+                if any(keyword in response_text.lower() for keyword in ['没有', '未找到', '不存在', 'none', 'not found']):
+                    return [0, 0, 0, 0]
+                
+                # 默认返回[0, 0, 0, 0]
+                return [0, 0, 0, 0]
+                
+            except (json.JSONDecodeError, ValueError, IndexError) as e:
+                print(f"警告：无法解析返回结果 - {e}")
+                print(f"原始返回：{response_text}")
+                return [0, 0, 0, 0]
+                
+        except Exception as e:
+            print(f"错误：{str(e)}")
+            return [0, 0, 0, 0]
+
+
+    def detect_medicine_box_direct(self, image_input: ImageInput, medicine_name: str) -> List[int]:
+        """
+        检测图片中指定药品盒的位置，直接返回坐标列表
+        
+        Args:
+            image_input: 图像输入数据
+            medicine_name: 要检测的药品名称
+            
+        Returns:
+            List[int]: [x1, y1, x2, y2] 坐标列表，表示目标检测框的左上角和右下角坐标，检测不到返回[0, 0, 0, 0]
+        """
+        try:
+            self._validate_image_input(image_input)
+            
+            system_prompt = """你是一个专业的药品检测助手。你的任务是：
+1. 仔细分析图片中的药品盒
+2. 识别指定的药品名称
+3. 如果找到目标药品盒，计算其边界框坐标（左上角和右下角）
+4. 严格按照指定格式返回结果
+
+重要规则：
+- 坐标系统：图片左上角为原点(0,0)，向右为x轴正方向，向下为y轴正方向
+- 返回格式：必须严格按照[x1, y1, x2, y2]格式返回，例如：[200, 150, 500, 350]
+- 如果未找到目标药品，返回：[0, 0, 0, 0]
+- 不要添加任何解释文字，只返回坐标数组"""
+
+            user_prompt = f"""请在图片中精确找到药品"{medicine_name}"。
+
+如果找到该药品，请返回边界框坐标数组：
+[左上角x坐标, 左上角y坐标, 右下角x坐标, 右下角y坐标]
+
+如果没有找到，请返回：
+[0, 0, 0, 0]
+
+注意：
+- 只返回与'{medicine_name}'完全匹配或高度相似的药品信息
+- 只返回坐标数组，不要添加其他文字
+- 确保坐标准确表示药品盒的边界"""
+
+            # 调用API获取响应
+            response_text = self._call_vision_api(image_input, system_prompt, user_prompt, max_tokens=100)
+            print(response_text)
+            
+            # 尝试提取坐标数组
+            try:
+                # 查找方括号格式的坐标
+                array_match = re.search(r'\[\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\]', response_text)
+                if array_match:
+                    # 提取数字
+                    coords_str = array_match.group()
+                    coords = json.loads(coords_str)
+                    # 确保是整数列表
+                    return [int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])]
+                
+                # 如果没有找到方括号格式，尝试提取数字
                 numbers = re.findall(r'\d+', response_text)
                 if len(numbers) >= 4:
                     x1 = int(numbers[0])
@@ -252,6 +333,7 @@ R: 1. 健胃消食片 0.8g*32片 1盒
 
             # 调用API获取响应
             response_text = self._call_vision_api(image_input, system_prompt, user_prompt, max_tokens=500)
+            print(response_text)
             
             try:
                 # 尝试直接解析JSON

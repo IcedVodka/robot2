@@ -42,8 +42,8 @@ try:
         # 按 's' 键截图
         if key == ord('s'):
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            left_filename = os.path.join(screenshot_dir, f"left_camera_{timestamp}.png")
-            right_filename = os.path.join(screenshot_dir, f"right_camera_{timestamp}.png")
+            left_filename = os.path.join(screenshot_dir, f"left_camera_{timestamp}.jpg")
+            right_filename = os.path.join(screenshot_dir, f"right_camera_{timestamp}.jpg")
             
             cv2.imwrite(left_filename, left_bgr_frame)
             cv2.imwrite(right_filename, right_bgr_frame)

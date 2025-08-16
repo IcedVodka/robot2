@@ -7,7 +7,7 @@ from Robot.sensor.lift import SerialLiftingMotor
 # 放置药框
 
 app = SerialLiftingMotor()
-app.cmd_vel_callback(100)
+app.cmd_vel_callback(380)
 
 
 

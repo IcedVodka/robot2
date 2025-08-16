@@ -7,7 +7,7 @@ from grasp_task2.llm_quest import VisionAPI, ImageInput
 
 def test_prescription_recognition():
     """测试处方单识别功能"""
-    test_image = "data/cam_capture/realsense_color_327122078945_20250813_112112.jpg"
+    test_image = "/home/s402/yd/robot2/screenshots/left_camera_20250815_141012.jpg"
     
     try:
         # 创建API实例
@@ -27,23 +27,32 @@ def test_prescription_recognition():
 
 def test_medicine_box_detection():
     """测试药品盒检测功能"""
-    test_image = "/home/s402/yd/robot2/logs/20250813_133927_left_rgb.jpg"
+    test_image = "/home/s402/yd/robot2/logs/20250815_153449_right_rgb.jpg"
+    import cv2
+    # 创建API实例
+    api = VisionAPI()
     
-    try:
-        # 创建API实例
-        api = VisionAPI(base_url="https://dashscope.aliyuncs.com/compatible-mode/v1")
-        
-        # 创建图像输入
-        image_input = ImageInput(image_path=test_image)
-        
-        # 测试药品盒检测
-        medicine_name = "硫酸氢氯吡格雷片"
-        print(f"正在检测图片中的 '{medicine_name}'...")
-        box_coords = api.detect_medicine_box(image_input, medicine_name)
-        print(f"检测结果：{box_coords} [x1, y1, x2, y2]")
-        
-    except Exception as e:
-        print(f"测试过程中出现错误：{str(e)}")
+    # 创建图像输入
+    image_input = ImageInput(image_path=test_image)
+    
+    # 测试药品盒检测
+    medicine_name = "维c银翘片"
+    print(f"正在检测图片中的 '{medicine_name}'...")
+    box_coords = api.detect_medicine_box_direct(image_input, medicine_name)
+    print(f"检测结果：{box_coords} [x1, y1, x2, y2]")
+
+
+    image = cv2.imread(test_image)   
+    x1, y1, x2, y2 = box_coords[0], box_coords[1], box_coords[2], box_coords[3]
+    cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    
+    # 添加标签
+    cv2.putText(image, "维c银翘片", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2) 
+    cv2.imshow("Image", image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    
+   
 
 
 if __name__ == "__main__":

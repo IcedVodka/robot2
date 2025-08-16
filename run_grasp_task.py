@@ -14,7 +14,12 @@ from grasp_task2.grasp_task import GraspTask
 
 if __name__ == "__main__":
     grasp_task = GraspTask()
-    grasp_task.place_medicine_basket()
+    grasp_task.prescription_recognition()
+    # grasp_task.left_robot.set_arm_init_joint()
+    # grasp_task.left_robot.set_arm_joints_block(grasp_task.left_moving_joints)
+    # grasp_task.single_medicine_grasp("维c银翘片", arm_side="right")
+    # grasp_task.place_medicine_basket()
+    # grasp_task.place_medicine_basket()
     # grasp_task.single_medicine_grasp("硫酸氢氯吡格雷片", arm_side="right")
 
 
